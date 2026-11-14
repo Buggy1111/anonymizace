@@ -115,7 +115,9 @@ async function anonymizeDocx(buf,pairs){
   for(const en of entries){
     if(!/\.(xml|rels)$/i.test(en.name)) continue;
     const raw=dec.decode(await inflate(en));
-    for(const hay of [decode(raw), decode(raw.replace(/<[^>]*>/g,""))]){
+    // 1) surové XML vč. hodnot atributů (odkazy), 2) jen text bez tagů — chytí i údaj rozdělený mezi runy
+    const parsed=new DOMParser().parseFromString(raw,"application/xml");
+    for(const hay of [decode(raw), parsed.documentElement?parsed.documentElement.textContent:""]){
       for(const m of matchers){m.re.lastIndex=0; if(m.re.test(hay)) throw new Error("v části "+en.name+" zůstal údaj ("+m.ph+"), DOCX z bezpečnosti nevytvořím");}
     }
   }

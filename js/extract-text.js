@@ -74,7 +74,13 @@ async function extractText(file,progress){
   if(name.endsWith(".pdf")||file.type==="application/pdf"){
     if(!window.pdfjsLib) throw new Error("pdf.js se nenačetlo");
     if(!pdfjsLib.GlobalWorkerOptions.workerSrc) pdfjsLib.GlobalWorkerOptions.workerSrc=PDF_WORKER;
-    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),isEvalSupported:false}).promise;
+    const task=pdfjsLib.getDocument({data:await file.arrayBuffer(),isEvalSupported:false});
+    // PDF zamčené heslem (např. výpisy z banky, dokumenty z datové schránky) — heslo zůstane jen v prohlížeči
+    task.onPassword=(update,reason)=>{
+      const pw=window.prompt(reason===2?"Heslo nesedí. Zadejte heslo k PDF znovu:":"PDF je chráněné heslem. Zadejte heslo (zůstane jen ve vašem prohlížeči):");
+      if(pw===null){task.destroy();return;} update(pw);
+    };
+    const pdf=await task.promise.catch(e=>{throw new Error(/password|destroy/i.test(e&&(e.name+e.message))?"PDF je chráněné heslem a heslo nebylo zadáno":e.message);});
     let out="", textChars=0;
     for(let i=1;i<=pdf.numPages;i++){ const pg=await pdf.getPage(i); const tc=await pg.getTextContent();
       out+=joinPdfItems(tc.items)+"\n"; textChars+=tc.items.reduce((n,it)=>n+(it.str||"").trim().length,0); }

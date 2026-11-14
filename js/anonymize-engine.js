@@ -95,6 +95,7 @@ const STRUCT = [
   // (?<![A-Z\d]) před číslicí: capture nesmí ukrást číslici z dřívějšího placeholderu
   // („sp. zn. SPZN1“ → bral „1“ → SPZNDOKID1) — placeholdery jsou VELKÁ písmena+číslo
   {key:"DOKID",   label:"číslo dokumentu",cap:1, re:/(?:(?<![\p{L}])(?:VS|KS|SS)(?=[:\s])|(?<![\p{L}])[VvKkSs]\.\s?[Ss]\.(?=[:\s])|(?:[Ss]mlouv\p{L}*|[Ff]aktur\p{L}*|[Oo]bjednávk\p{L}*|[Pp]ojistk\p{L}*|[Pp]ojistn\p{L}*\s+smlouv\p{L}*)\s+(?:č\.|čísl\p{L}*)|[Vv]ariabiln\p{L}*\s+symbol|[Ss]pecifick\p{L}*\s+symbol|[Čč]ísl\p{L}*\s+(?:smlouvy|pojistky|pojistné\s+smlouvy|škodní\s+události|jednací|zákaznick\p{L}*|profilu|žáka)|[Čč]\.\s*j\.|[Ss]p\.\s*zn\.|[Ss]pisov\p{L}*\s+značk\p{L}*|[Oo]sobní\s+čísl\p{L}*|ID\s+žáka|[Ee]viden\p{L}*\s+čísl\p{L}*|[Ee]v\.\s*č\.|[Vv]ložk\p{L}*\s+č\.|(?:SAK|ČAK)\s+č\.|(?<![\p{L}])[Čč]íslo:|[Nn]aše\s+čísl\p{L}*|[Čč]\.\s*k\.)[^\d\n]{0,25}?((?:[A-Z]{1,5}[ \/-])?(?<![A-Z\d])\d[\dA-Za-z]*(?:[\/-]{1,2}[\dA-Za-z]+){0,3})/gu},
+  {key:"DOKID",   label:"číslo jednací",  re:/\b(?:[A-Z]{2,6}-)?\d{2,7}-\d{1,4}\/\d{4}(?:-[A-Z]{2,6})?\b/g},
   {key:"PAS",     label:"číslo pasu",     cap:1, re:/(?:číslo\s+pasu|cestovní\p{L}*\s+pas\p{L}*|pas\s+č\.)[^\d\n]{0,15}?([A-Z]{0,2}\d{7,9})(?!\d)/giu},
   {key:"RP",      label:"řidičský průkaz",cap:1, re:/(?:řidičsk\p{L}*\s+průkaz\p{L}*|řidičák\p{L}*|ŘP)[^\dA-Z\n]{0,15}?([A-Z]{2}\s?\d{6})(?!\d)/gu},
   {key:"ICP",     label:"IČP/IČZ",        cap:1, re:/(?<![\p{L}])(?:IČP|IČZ)[:\s]{1,3}(\d{8})(?!\d)/gu},
@@ -102,20 +103,23 @@ const STRUCT = [
   {key:"COP",     label:"číslo OP",       cap:1, re:/(?:občansk\p{L}*\s+průkaz\p{L}*|čísl\p{L}*\s+OP|OP\s+č\.|č\.\s*OP)[^\d\n]{0,20}?(\d{9})\b/gu},
   // číslo účtu: pomlčková forma NEBO v kontextu „účet/účtu“ (zúženo, ať nebere č.j./roky)
   {key:"UCET",    label:"číslo účtu",     cap:1, re:/(?:[Úú]č\p{L}+|č\.\s*ú\.)[^\d\n]{0,12}?((?:\d{1,6}-)?\d{2,10}\/\d{4})\b/gu},
+  {key:"UCET",    label:"číslo účtu",     cap:1, re:/(?:[Úú]čet|[Úú]čtu|ÚČET|č\.\s*ú\.)[\s:–-]{1,6}(\d{6,10})(?![\d\/])/gu},  // „VÝPLATA NA ÚČET - 1234567890“
   {key:"SSN",     label:"US SSN",         re:/\b\d{3}-\d{2}-\d{4}\b/g},
   // částka: číslo + měna („85 000 Kč", „1 200,50 EUR", „25 tis. Kč", „15.000,- Kč") nebo měna před číslem („€ 1 200", „$350").
   // PŘED telefonem/PSČ/IČO, ať si číslice částky nepřeberou. Částka sama osobní údaj být nemusí,
   // ale u dlužníka/pacienta ho prozradí (výše dluhu, mzdy, odškodnění) → redigujeme.
-  {key:"CASTKA",  label:"částka",         re:/(?<![\d.,])\d+(?:[  .]\d{3})*(?:,\d{1,2}|,-)?(?:\s?(?:mil\.?|tis\.?|milion\p{L}*|tisíc\p{L}*))?\s?(?:[Kk][čČcC]|CZK|czk|EUR|eur|USD|GBP|€|\$|korun\p{L}*(?:\s+česk\p{L}*)?|eur\p{L}*)(?![\p{L}\d])|(?:€|\$|EUR|CZK|USD|[Kk][čČ])\s?\d+(?:[ ,. ]\d{3})*(?:[.,]\d{1,2}|,-)?(?![\d])/gu},
+  {key:"CASTKA",  label:"částka",         re:/(?<![\d.,])(?:\d+(?:[  .]\d{3})*\s?[–-]\s?)?\d+(?:[  .]\d{3})*(?:,\d{1,2}|,-)?(?:\s?(?:mil\.?|tis\.?|milion\p{L}*|tisíc\p{L}*))?\s?(?:[Kk][čČcC]|čk|CZK|czk|EUR|eur|USD|GBP|€|\$|korun\p{L}*(?:\s+česk\p{L}*)?|eur\p{L}*)(?![\p{L}\d])|(?:€|\$|EUR|CZK|USD|[Kk][čČ])\s?\d+(?:[ ,. ]\d{3})*(?:[.,]\d{1,2}|,-)?(?![\d])/gu},
   // částka slovy („slovy: osmdesát tisíc korun českých") — běžné ve smlouvách
   {key:"CASTKA",  label:"částka",  cap:1, re:/slovy[:\s]+((?:\p{L}+[\s-]){0,8}?\p{L}*\s?(?:korun\p{L}*|Kč|eur\p{L}*)(?:\s+česk\p{L}*)?)/gu},
   // částka bez měny, ale za slovem, které peníze jednoznačně ohlašuje („ve výši 80 000", „jistina 120 000")
-  {key:"CASTKA",  label:"částka",  cap:1, re:/(?:ve\s+výši|částk\p{L}*|cen[aěuy]\b|úhrad\p{L}*|dluh\p{L}*|jistin\p{L}*|pokut\p{L}*|odměn\p{L}*|mzd\p{L}*|nájemn\p{L}*|záloh\p{L}*|doplat\p{L}*|odškodn\p{L}*|náhrad\p{L}*\s+škody)(?:\s+(?:činí|ve\s+výši|celkem|ve\s+výši))?[\s:]{1,3}((?:\d{1,3}(?:[  .]\d{3})+|\d{3,})(?:,\d{1,2}|,-)?)(?![\d\/.])/gu},
+  {key:"CASTKA",  label:"částka",  cap:1, re:/(?:[Nn]a\s+účet:|[Vv]ýplat\p{L}*|[Čč]ist\p{L}+\s+mzd\p{L}*|[Hh]rub\p{L}+\s+mzd\p{L}*|[Zz]áklad\p{L}*(?:\s+\p{L}+\.?){0,2}|[Ss]um[aouy]\b|ve\s+výši|částk\p{L}*|cen[aěuy]\b|úhrad\p{L}*|dluh\p{L}*|jistin\p{L}*|pokut\p{L}*|odměn\p{L}*|mzd\p{L}*|nájemn\p{L}*|záloh\p{L}*|doplat\p{L}*|odškodn\p{L}*|náhrad\p{L}*\s+škody)(?:\s+(?:činí|ve\s+výši|celkem|ve\s+výši))?[\s:]{1,3}((?:\d{1,3}(?:[  .]\d{3})+|\d{3,})(?:,\d{1,2}|,-)?)(?![\d\/.])/gu},
   // telefon: a) s předvolbou +420/+421 — jistota, bereme libovolné členění 9 číslic
   //          b) bez předvolby — jen reálné CZ prefixy 2–7 (pevné linky+mobily; částky
   //             „123 456 789“ začínají 1 → propadnou) + stopka na měnu/jednotky/delší čísla
   {key:"TELEFON", label:"telefon",        re:/(?:\+|00\s?)42[01](?:[\s.-]?\d){9}\b/g},
   {key:"TELEFON", label:"telefon",        re:/(?<![\d\/])\b0[2-9]\d{2}[ \/]?\d{3} ?\d{3}\b(?![\s.-]?\d)/g},  // SK: 0901 234 567
+  {key:"TELEFON", label:"telefon",        re:/(?<![\d\/])\b02[ \/]?\d{4} ?\d{4}\b(?![\s.-]?\d)/g},          // SK Bratislava: 02/1234 5678
+  {key:"TELEFON", label:"telefon",  cap:1, re:/(?:[Tt]el\p{L}*|[Ff]ax|[Mm]obil\p{L}*|[Ss]ekret\p{L}*)[.:\s]{1,4}(\+?\d[\d \/-]{6,15}\d)(?![\d\/])/gu},
   {key:"TELEFON", label:"telefon",        re:/(?<![\d\/])\b[2-7]\d{2} \d{2} \d{2} \d{2}\b(?![\s.-]?\d)(?!\s?(?:Kč|CZK|EUR|%))/g},
   {key:"TELEFON", label:"telefon",        re:/(?<!\d[\s.-])\b[2-7]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}\b(?![\s.-]?\d)(?!\s?(?:Kč|CZK|EUR|USD|€|%|,-|mil|tis))/g},
   // SPZ: přesný moderní formát číslice+písmeno+alfanum + 4 číslice („3T9 4567“) —
@@ -133,6 +137,7 @@ const STRUCT = [
   //      ale NE před měnou/jednotkou („250 00 Kč“, „150 96 kusů“) a ne uvnitř delšího čísla
   {key:"PSC",     label:"PSČ",    cap:1,  re:/PSČ[\s:]{0,3}(\d{3}\s?\d{2})\b/g},
   {key:"PSC",     label:"PSČ",            re:/(?<!\d[ \t])\b\d{3}\s\d{2}\b(?![\s.,-]?\d)(?!\s?(?:Kč|CZK|EUR|USD|€|%|,-|[Kk]s\b|kus|km\b|kg\b|mil\b|tis\b|hod\b|let\b|m[²2]?\b|l\b|g\b))/gu},
+  {key:"PSC",     label:"PSČ",            re:/(?<![\d\/.,])\b\d{3} \d{2}(?=\s+\p{Lu}\p{Ll}{2,})(?!\s+(?:Kč|Eur|Euro|Sk)\b)/gu},
   {key:"PSC",     label:"PSČ",            re:/(?<![\d\/.,-])\b\d{5}(?=\s+\p{Lu}\p{Ll}+)(?!\s+(?:Kč|Eur|Euro|Sk)\b)/gu},
   {key:"ICO",     label:"IČO",    cap:1,  re:/(?<![\p{L}\d])(?:IČO?|ICO|1ČO|IC0|IČ0)[:\s]{1,3}(\d{2} ?\d{2} ?\d{2} ?\d{2}|\d{2} \d{3} \d{3})(?!\d)/gu},
   {key:"DIC",     label:"DIČ",    cap:1,  re:/(?<![\p{L}])DIČ[:\s]{1,3}(\d{8,10})(?!\d)/gu},
@@ -264,6 +269,14 @@ function anonymize(text,nerEnts){
     if(CITIES.has(w)) return assign(m,"MESTO","město/obec");
     return m;
   });
+  const seenOrig=new Set();
+  for(const r of [...reps].sort((a,b)=>b.original.length-a.original.length)){
+    // u částky i samotné číslo („12 345 Kč“ → skryje i holé „12 345“ v součtech)
+    const cands=[r.original]; if(r.type==="CASTKA"){const num=(r.original.match(/\d[\d \u00a0.,]*\d/)||[""])[0]; if(num.replace(/\D/g,"").length>=4) cands.push(num);}
+    for(const o of cands){ if(o.length<4||seenOrig.has(o)) continue; seenOrig.add(o);
+    const re=new RegExp("(?<![\\p{L}\\p{N}])"+o.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+")+"(?![\\p{L}\\p{N}])","gu");
+    out=out.replace(re,r.placeholder); }
+  }
   return {anonymized:out,replacements:reps};
 }
 
