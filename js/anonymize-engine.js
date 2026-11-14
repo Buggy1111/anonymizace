@@ -16,7 +16,7 @@ const FIRST_NAMES = new Set(["jan","jana","petr","petra","josef","marie","martin
 // ⚠️ vědomý kompromis (review #10): "Most"/"Opava"/"Odry" kolidují s apelativy —
 // u slovníku bez kontextu nerozlišitelné; chybujeme směrem k redakci (FP ≠ leak),
 // reálné dokumenty řeší NER mód.
-const CITIES = new Set(["praha","praze","prahy","prahou","prahu","brno","brně","brna","brnu","ostrava","ostravě","ostravy","ostravu","ostravou",
+const CITIES = new Set(["bratislava","bratislave","bratislavy","bratislavu","košice","košiciach","prešov","prešove","žilina","žiline","nitra","nitre","trnava","trnave","trenčín","trenčíne","poprad","poprade","martin","banská bystrica","banskej bystrici","praha","praze","prahy","prahou","prahu","brno","brně","brna","brnu","ostrava","ostravě","ostravy","ostravu","ostravou",
   "plzeň","plzen","plzni","plzně","olomouc","olomouci","olomouce","liberec","liberci","liberce","hradec","hradci","pardubice","pardubic","pardubicích",
   "zlín","zlin","zlíně","zlína","kladno","kladně","kladna","most","mostě","mostu","opava","opavě","opavy","karviná","karvina","karviné","karvinou",
   "jihlava","jihlavě","jihlavy","přerov","prerov","přerově","přerova","studénka","studenka","studénce","studénky","kopřivnice","koprivnice","kopřivnici",

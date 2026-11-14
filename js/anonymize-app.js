@@ -12,7 +12,7 @@ const ignEl=document.getElementById("ignored"), catsEl=document.getElementById("
 function clear(el){while(el.firstChild)el.removeChild(el.firstChild);}
 function span(cls,text){const s=document.createElement("span");if(cls)s.className=cls;s.textContent=text;return s;}
 
-let lastAnon="", lastMap=new Map(), lastReps=[], lastDocx=null, lastIncomplete=false;
+let lastAnon="", lastMap=new Map(), lastReps=[], lastDocx=null, lastIncomplete=false, lastName="";
 // ── co skrývat: skupiny druhů (vypnutá skupina se vrátí do textu) + ručně vrácené falešné nálezy ──
 const CATS=[
   ["Osoby",["OSOBA"]],["Firmy a úřady",["FIRMA","INSTITUCE"]],["Adresy",["MESTO","ULICE","CP","PSC"]],
@@ -149,7 +149,7 @@ function run(){
 const exWrap=document.getElementById("examples");
 Object.keys(EXAMPLES).forEach(name=>{
   const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=name;b.setAttribute("aria-pressed",String(name==="Právní spis"));
-  b.onclick=function(){input.value=EXAMPLES[name];lastIncomplete=false;lastDocx=null;document.getElementById("anon-fst").textContent="";run();exWrap.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));};exWrap.appendChild(b);
+  b.onclick=function(){input.value=EXAMPLES[name];lastIncomplete=false;lastDocx=null;lastName="";document.getElementById("anon-fst").textContent="";run();exWrap.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));};exWrap.appendChild(b);
 });
 document.getElementById("copy").onclick=function(){
   const b=document.getElementById("copy");
@@ -203,7 +203,7 @@ run();
         if(txt.length>MAX_CHARS) lastDocx.truncated=true;}
       input.value=txt.slice(0,MAX_CHARS); run();
       const d=describeExtract(f.name,txt.length,info,MAX_CHARS);
-      lastIncomplete=d.incomplete; fst.className=d.incomplete?"fst err":"fst ok"; fst.textContent=d.text;
+      lastIncomplete=d.incomplete; lastName=f.name; fst.dataset.last=d.text; fst.className=d.incomplete?"fst err":"fst ok"; fst.textContent=d.text;
     }catch(e){ fst.className="fst err"; fst.textContent="Soubor se nepodařilo načíst: "+e.message; }
     fi.value="";
   });
@@ -239,12 +239,35 @@ async function batch(files,fst){
   const bad=log.filter(l=>l.startsWith("CHYBA")).length, part=log.filter(l=>l.startsWith("NEÚPLNÉ")).length;
   fst.className=bad||part?"fst err":"fst ok"; fst.textContent=`Staženo anonymizovano.zip: ${files.length-bad} z ${files.length} souborů`+(bad?`, ${bad} se nepodařilo`:"")+(part?`, ${part} NEÚPLNÉ`:"")+(bad||part?" (viz souhrn.txt)":"")+".";
 }
-// ── uložit jako PDF: tisk jen anonymizovaného textu (prohlížeč nabídne „Uložit jako PDF“) ──
-document.getElementById("pdf-dl").addEventListener("click",function(){
-  let sheet=document.getElementById("print-sheet");
-  if(!sheet){sheet=document.createElement("div");sheet.id="print-sheet";document.body.appendChild(sheet);}
-  sheet.textContent=lastAnon;
-  document.documentElement.classList.add("printing");
-  const done=()=>{document.documentElement.classList.remove("printing");window.removeEventListener("afterprint",done);};
-  window.addEventListener("afterprint",done); window.print(); setTimeout(done,60000);
-});
+// ── stáhnout PDF: generuje se v prohlížeči (jsPDF + písmo Inter s českou a slovenskou diakritikou,
+//    obojí na vlastní doméně), obsahuje jen anonymizovaný text. Knihovna se načte až při kliknutí.
+async function fetchB64(url){const b=new Uint8Array(await (await fetch(url)).arrayBuffer());let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
+async function exportPdf(){
+  const fst=document.getElementById("anon-fst");
+  if(!lastAnon.trim()){fst.className="fst err";fst.textContent="Není co uložit — nejdřív vložte nebo nahrajte text.";return;}
+  fst.className="fst";fst.textContent="Připravuji PDF…";
+  try{
+    await loadScriptOnce("js/vendor/jspdf/jspdf.umd.min.js");
+    const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",compress:true});
+    const [r,b]=await Promise.all([fetchB64("fonts/pdf/inter-cz-400.ttf"),fetchB64("fonts/pdf/inter-cz-700.ttf")]);
+    doc.addFileToVFS("Inter-400.ttf",r);doc.addFont("Inter-400.ttf","Inter","normal");
+    doc.addFileToVFS("Inter-700.ttf",b);doc.addFont("Inter-700.ttf","Inter","bold");
+    doc.setProperties({title:"Anonymizovaný dokument",creator:"anonymizace.js.org",author:""});
+    const M=20,W=210-2*M,H=297,LH=5.2; let y=M;
+    doc.setFont("Inter","bold");doc.setFontSize(14);doc.text("Anonymizovaný dokument",M,y);y+=6;
+    doc.setFont("Inter","normal");doc.setFontSize(8.5);doc.setTextColor(110);
+    doc.text("Vytvořeno v prohlížeči na anonymizace.js.org · "+new Date().toLocaleDateString("cs-CZ")+" · před sdílením zkontrolujte",M,y);y+=5;
+    if(lastIncomplete){doc.setTextColor(200,30,30);doc.setFont("Inter","bold");
+      for(const l of doc.splitTextToSize("NEÚPLNÉ: "+(document.getElementById("anon-fst").dataset.last||"část dokumentu nebyla zpracována"),W)){doc.text(l,M,y);y+=4.2;}doc.setFont("Inter","normal");}
+    doc.setTextColor(0);doc.setFontSize(10.5);y+=3;
+    for(const para of lastAnon.replace(/\t/g,"    ").split("\n")){
+      const lines=para?doc.splitTextToSize(para,W):[""];
+      for(const l of lines){ if(y>H-M){doc.addPage();y=M;} doc.text(l,M,y); y+=LH; }
+    }
+    const n=doc.getNumberOfPages(); doc.setFontSize(8);doc.setTextColor(140);
+    for(let i=1;i<=n;i++){doc.setPage(i);doc.text(`${i} / ${n}`,210-M,H-10,{align:"right"});}
+    doc.save((lastName||"dokument").replace(/\.[^.]+$/,"")+"-anonymizovano.pdf");
+    fst.className=lastIncomplete?"fst err":"fst ok";fst.textContent="PDF staženo"+(lastIncomplete?" — POZOR, dokument je NEÚPLNÝ (vyznačeno i v PDF).":".");
+  }catch(e){fst.className="fst err";fst.textContent="PDF se nepodařilo vytvořit: "+e.message+". Text můžete zkopírovat tlačítkem Kopírovat.";}
+}
+document.getElementById("pdf-dl").addEventListener("click",exportPdf);

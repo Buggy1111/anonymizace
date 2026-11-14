@@ -28,6 +28,16 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   const [z]=await Promise.all([p.waitForEvent('download',{timeout:300000}),p.setInputFiles('#anon-file',[path.join(F,'mixed.pdf'),long,path.join(F,'zaloba.docx')])]);
   const zp=path.join(tmp,'b.zip'); await z.saveAs(zp); const names=require('child_process').execFileSync('unzip',['-Z1',zp]).toString();
   t('hromadně: neúplné soubory mají -NEUPLNE',/mixed-NEUPLNE/.test(names)&&/long-NEUPLNE/.test(names),names);
+  // přímý export PDF (jsPDF v prohlížeči): prázdný vstup, diakritika, více stran, žádný originál
+  await p.fill('#input','');await p.waitForTimeout(400);await p.click('#pdf-dl');await p.waitForTimeout(400);
+  t('PDF: prázdný vstup = srozumitelná hláška',/Není co uložit/.test(await p.textContent('#anon-fst')));
+  let longTxt='';for(let i=1;i<=300;i++)longTxt+=`Odstavec ${i}: Kupující Jan Novák, RČ 800315/1234, zaplatí ${i*1000} Kč. Příliš žluťoučký kůň úpěl ďábelské ódy; ľĺŕôä „ok“.\n`;
+  await p.fill('#input',longTxt);await p.waitForTimeout(900);
+  const [pd]=await Promise.all([p.waitForEvent('download',{timeout:60000}),p.click('#pdf-dl')]);const pp=path.join(tmp,'x.pdf');await pd.saveAs(pp);
+  const ptxt=require('child_process').execFileSync('pdftotext',['-enc','UTF-8',pp,'-']).toString('utf8');
+  const npages=(ptxt.match(/\f/g)||[]).length;
+  t('PDF: více stran',npages>=5,'stran '+npages); t('PDF: diakritika čitelná',['žluťoučký','úpěl','ďábelské','ľĺŕôä','„ok“'].every(w=>ptxt.includes(w)));
+  t('PDF: žádný originál',!/Novák|800315/.test(ptxt));
   t('lokální režim: 0 externích požadavků',ext.length===0,ext.join()); t('žádné JS chyby',errs.length===0,errs.join());
   await b.close(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail?1:0);
 })();

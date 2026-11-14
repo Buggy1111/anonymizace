@@ -41,7 +41,7 @@ Stejný údaj dostane v celém textu stejnou značku (dvakrát „Jan Novák“ 
 - Výběr, co skrývat (osoby, adresy, kontakty, identifikátory, peníze, data, spisová čísla, zdraví); kliknutím na značku vrátíte falešný nález zpět do textu.
 - Word (DOCX) jde stáhnout anonymizovaný se zachovaným formátováním; z vlastností dokumentu a revizí se odstraní autor.
 - Hromadně: víc souborů najednou (TXT, PDF, DOCX, fotky) → ZIP s anonymizovanými soubory a souhrnem, vše v prohlížeči.
-- Uložit PDF: vytiskne jen anonymizovaný text (prohlížeč nabídne „Uložit jako PDF“). PDF chráněné heslem se otevře po zadání hesla, heslo zůstane v prohlížeči.
+- Stáhnout PDF: hotový PDF soubor jen s anonymizovaným textem, vytvořený přímo v prohlížeči (diakritika, více stran). PDF chráněné heslem se otevře po zadání hesla, heslo zůstane v prohlížeči.
 - Zpětné doplnění: odpověď z AI se značkami (OSOBA1, RC1…) vložíte do druhého pole a anonymizér značky nahradí původními údaji, jen ve vašem prohlížeči.
 - Do 20 000 znaků najednou (asi 8 stran). Soubory PDF, DOCX, TXT a obrázky (PNG, JPG, WebP) do 20 MB. Naskenované PDF a fotky přečte OCR (Tesseract, čeština, slovenština, angličtina) přímo v prohlížeči, max. 20 stran; nic se neodesílá.
 - Jde o pseudonymizaci: výstup si vždy přečtěte, nepřímé indicie (funkce, vzácná příjmení v kontextu) nástroj nemusí poznat.
