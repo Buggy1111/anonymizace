@@ -25,6 +25,7 @@ Doprovodný web k MCP serveru [anonymize-mcp](https://github.com/Buggy1111/anony
 
 `tests/engine.test.cjs` (`node tests/engine.test.cjs`) — 174 případů: díry, přetažení, reálné vzory dokumentů (jen smyšlené hodnoty) a ReDoS (data, verze, „Smlouva o dílo“ zůstávají).
 `tests/e2e.cjs` — testy v prohlížeči na smyšlených souborech z `tests/fixtures/` (OCR po stránkách, neúplné dokumenty, DOCX, ZIP, 0 externích požadavků).
+`tests/corpus.test.cjs` — společný smyšlený korpus (12 dokumentů, 68 údajů; stejný soubor má i anonymize-mcp), měří úniky a přetažení.
 - **NER** — rozpoznávání pojmenovaných entit (NameTag 3).
 - **Morfologie** — lemma, slovní druh, mluvnické kategorie (UDPipe 2).
 - **Korektor** — oprava překlepů a diakritiky (Korektor).

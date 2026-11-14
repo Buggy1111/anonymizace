@@ -235,6 +235,11 @@ function anonymize(text,nerEnts){
   // město, nepatří do jména ("Petr Veškeré Náležitosti"); 2. slovo za jménem bereme
   // jen s příjmenní koncovkou ("Barbora Vidová Hladká" ano, ale "Jan Novák Veškeré" ne).
   const ROLE=new Set(["žalobce","žalobkyně","žalovaný","žalovaná","pan","paní","pacient","pacientka","kupující","prodávající","účastník","účastnice","svědek","svědkyně","obviněný","obviněná","dlužník","dlužnice","věřitel","věřitelka","zaměstnanec","zaměstnankyně","nájemce","pronajímatel","jméno","příjmení","dne","podepsal","podepsala","zástupce","advokát","advokátka","soudce","soudkyně","lékař","lékařka","ošetřující","student","studentka","žák","žákyně","klient","klientka"]);
+  const SURADJ=new Set(["malý","malá","nový","nová","velký","velká","mladý","mladá","dlouhý","dlouhá","dobrý","dobrá","černý","černá","bílý","bílá","veselý","veselá","starý","stará","krátký","krátká","hrubý","hrubá","šťastný","šťastná","tichý","tichá","rychlý","rychlá","zelený","zelená","malé","nové"]);
+  const CAPSSTOP=new Set(["republika","republiky","soud","soudu","smlouva","smlouvy","článek","faktura","příloha","odběratel","dodavatel","jméno","příjmení","adresa","poznámka","věc","usnesení","rozsudek","žaloba","výzva","oznámení","rozhodnutí","plná","moc","zpráva","výpis","celkem","podpis","datum","strana","stran","kupující","prodávající","pronajímatel","nájemce","zaměstnanec","zaměstnavatel","pacient","pacientka","žalobce","žalovaný","žalovaná","dlužník","věřitel","svědek","advokát","notář","exekutor","úřad","město","obec","kraj","ministerstvo","policie","nemocnice","škola","banka"]);
+  // příjmení VELKÝMI před křestním („NOVÁK Jan“, „SVOBODOVÁ Marie“) — formuláře, seznamy
+  const CAPS_RE=new RegExp("(?<![\\p{L}])(\\p{Lu}{3,}(?:-\\p{Lu}{3,})?)\\s+((?:"+NAMEALT+"))(?![\\p{L}])","gu");
+  out=out.replace(CAPS_RE,(m,sur,first)=>{const w=sur.toLowerCase();return (ROLE.has(w)||NOTNAME.has(w)||CITIES.has(w)||CAPSSTOP.has(w)||/^(PSČ|IČO|DIČ|OSOBA|MESTO|ULICE|FIRMA)/.test(sur))?m:assign(m,"OSOBA","osoba");});
   const REV_RE=new RegExp("(?<![\\p{L}])(\\p{Lu}[\\p{Ll}]+)\\s+((?:"+NAMEALT+"))(?![\\p{L}])(?=\\s*,)","gu");
   out=out.replace(REV_RE,(m,sur,first)=>{const w=sur.toLowerCase();return (ROLE.has(w)||NOTNAME.has(w)||CITIES.has(w)||FIRST_NAMES.has(w))?m:assign(m,"OSOBA","osoba");});
   out=out.replace(DICT_RE,m=>{
@@ -245,6 +250,8 @@ function anonymize(text,nerEnts){
       const w=t[2].toLowerCase();
       const head=kept.slice(0,kept.length-t[1].length-t[2].length);
       const isSecondTrailing=/\s/.test(head.trim());
+      // přídavné jméno hned za křestním je u nás běžné příjmení (Ondřej Malý, Eva Malá, Radek Veselý)
+      if(!isSecondTrailing&&SURADJ.has(w)) break;
       if(NOTNAME.has(w)||CITIES.has(w)||(isSecondTrailing&&!SUR_END.test(t[2]))){ rest=t[1]+t[2]+rest; kept=head; }
       else break;
     }
