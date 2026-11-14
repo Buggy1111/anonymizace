@@ -176,7 +176,7 @@ function anonymize(text,nerEnts){
   out=out.replace(/((?:\b(?:JUDr|MUDr|MDDr|MVDr|PhDr|RNDr|PaedDr|ThDr|PharmDr|Ing|Mgr|Bc|Dr|doc|prof)\.\s?)+)(\p{Lu}[\p{Ll}]+(?:[ \t]+\p{Lu}[\p{Ll}]+){0,3})/gu,
     (m,title,name)=>title+assign(name,"OSOBA","osoba"));
   // město hned za PSČ nebo za ulicí („PSC1 Vítkov", „ULICE1, Bratislava") i když není ve slovníku
-  out=out.replace(/((?:PSC\d+|ULICE\d+,)\s+)(\p{Lu}[\p{Ll}]+(?:[ -]\p{Lu}[\p{Ll}]+)?)(?![\p{L}])/gu,(m,pre,city)=>pre+assign(city,"MESTO","město/obec"));
+  out=out.replace(/((?:PSC\d+|ULICE\d+,)[ \t]+)(\p{Lu}[\p{Ll}]+(?:[ -]\p{Lu}[\p{Ll}]+)?)(?![\p{L}])/gu,(m,pre,city)=>pre+assign(city,"MESTO","město/obec"));
   // jména: křestní ze slovníku (i samostatné) NEBO dvojice Velkých slov, kde
   // druhé končí typickou českou příponou příjmení (chytá i skloňované formy
   // jako "Marii Svobodové", které slovník neobsahuje).
@@ -200,7 +200,14 @@ function anonymize(text,nerEnts){
     "dovolená","dovolené","nemocenská","mzdová","mzdové","platná","platné","písemná","písemné","ústní",
     "veškerá","veškeré","veškerý","napadené","napadeného","napadeném","napadenému","napadená","napadený","usnesení","poučení",
     "rozhodnutí","odůvodnění","sražené","dlužné","dlužného","oprávněné","oprávněnou","povinné","vymáhané","vymáhaného","zletilé",
-    "nezletilé","nezletilá","nezletilý","mestský","mestská","mestské","mestského","mestskému","mestskom","okresný","okresného","okresnému","okresnom","krajskom","najvyšší","najvyššieho","tunajší","tunajšieho","slovenskej","českej","obchodnom","právnej","súdny","súdneho","vyššia","vyššie","slovenské","slovenského","české","českého","okresního","krajského","městského"]);
+    "nezletilé","nezletilá","nezletilý","mestský","mestská","mestské","mestského","mestskému","mestskom","okresný","okresného","okresnému","okresnom","krajskom","najvyšší","najvyššieho","tunajší","tunajšieho","slovenskej","českej","obchodnom","právnej","súdny","súdneho","vyššia","vyššie",
+    // běžná slova smluv (test na veřejných vzorech smluv z mpsv.cz / gov.cz, 14. 11. 2026)
+    "zákona","zákon","majetek","majetku","majetkem","kupujícímu","kupujícího","kupující","prodávajícímu","prodávajícího","prodávající",
+    "nedohodnou","vlastnické","vlastnický","vlastnická","vlastnického","jiné","jiná","jiný","žádná","žádné","žádný","nedílnou","nedílná","nedílné",
+    "nabídková","nabídkové","nabídkový","nabízený","nabízená","nabízené","datová","datové","datovou","zastoupený","zastoupená","zastoupen","zastoupena",
+    "zapsaný","zapsaná","zapsán","zapsána","článek","článku","cena","ceny","cenu","takovou","taková","takový","oprávky","zůstatková","zůstatkovou",
+    "plná","plné","plnou","plný","českou","slovenskou","nikoli","dodatek","dodatku","výsledek","nedostatek","předmět","předmětu","smlouva","smlouvy","smlouvou",
+    "objednatel","objednatele","zhotovitel","zhotovitele","pronajímatel","nájemce","příloha","přílohy","přílohou","odstavec","odstavce","strana","strany","stranou","slovenské","slovenského","české","českého","okresního","krajského","městského"]);
   // podstatná jména na -ení/-ání/-tí („Usnesení", „Poučení", „Rozhodnutí") nejsou příjmení
   const NOUNLIKE=/(?:ní|tí|ně)$/u;  // Usnesení, Advokátní, Současně, Rozhodnutí …
   // A) křestní ze slovníku + až 2 následující Velká slova (chytá příjmení i bez
@@ -235,6 +242,7 @@ function anonymize(text,nerEnts){
       if(NOTNAME.has(w)||CITIES.has(w)||(isSecondTrailing&&!SUR_END.test(t[2]))){ rest=t[1]+t[2]+rest; kept=head; }
       else break;
     }
+    if(NOTNAME.has(kept.toLowerCase())) return m;   // „nikoli" ≠ Nikol, „Datová" schránka
     return assign(kept,"OSOBA","osoba")+rest;
   });
   // B) anchor na PŘÍJMENÍ (přípona vč. skloňovaných pádů) + volitelné předchozí slovo.
@@ -242,7 +250,7 @@ function anonymize(text,nerEnts){
   //    heuristika by jinak brala adjektiva ("Komerční", "Automobilový", "Rakousko")
   //    jako příjmení → falešné poplachy / over-redakce čitelných slov.
   if(!(nerEnts&&nerEnts.length)){
-    const SUR_RE=new RegExp("(?:(\\p{Lu}[\\p{Ll}]+)\\s+)?(\\p{Lu}[\\p{Ll}]*"+SUF+")(?![\\p{Ll}])","gu");
+    const SUR_RE=new RegExp("(?:(\\p{Lu}[\\p{Ll}]+)[ \\t]+)?(\\p{Lu}[\\p{Ll}]*"+SUF+")(?![\\p{Ll}])","gu");
     out=out.replace(SUR_RE,function(m,pre,word){const w=word.toLowerCase();if(NOTNAME.has(w)||CITIES.has(w)||NOUNLIKE.test(w)) return m;
       if(pre&&(NOTNAME.has(pre.toLowerCase())||NOUNLIKE.test(pre.toLowerCase()))) return m.slice(0,m.length-word.length)+assign(word,"OSOBA","osoba");
       // oslovení/role před příjmením („Pan Novák", „Žalobce Dvořák") zůstává čitelné
