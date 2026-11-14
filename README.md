@@ -1,4 +1,4 @@
-# Czech NLP Toolkit
+# Anonymizace (anonymizace.js.org)
 
 České NLP nástroje online, zdarma a přímo v prohlížeči. Postaveno na akademických nástrojích [ÚFAL MFF UK](https://ufal.mff.cuni.cz/).
 
