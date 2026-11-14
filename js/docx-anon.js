@@ -74,7 +74,7 @@ function anonymizeWordXml(xml,matchers){
   for(const d of Array.from(doc.getElementsByTagNameNS(DOCX_W,"del"))) if(d.parentNode){d.parentNode.removeChild(d);count++;}
   for(const p of Array.from(doc.getElementsByTagNameNS(DOCX_W,"p"))){
     // w:t = text, w:delText = smazaný text v revizích (Word ho drží v souboru) — oboje v pořadí dokumentu
-    const ts=Array.from(p.getElementsByTagNameNS(DOCX_W,"*")).filter(t=>(t.localName==="t"||t.localName==="delText")&&nearestP(t)===p);
+    const ts=Array.from(p.getElementsByTagNameNS(DOCX_W,"*")).filter(t=>(t.localName==="t"||t.localName==="delText"||t.localName==="instrText")&&nearestP(t)===p);
     if(!ts.length) continue;
     const texts=ts.map(t=>t.textContent), full=texts.join("");
     for(const ed of findEdits(full,matchers)){
@@ -89,9 +89,6 @@ function anonymizeWordXml(xml,matchers){
       count++;
     }
     ts.forEach((t,k)=>{if(t.textContent!==texts[k]){t.textContent=texts[k];t.setAttributeNS("http://www.w3.org/XML/1998/namespace","xml:space","preserve");}});
-  }
-  for(const it of Array.from(doc.getElementsByTagNameNS(DOCX_W,"instrText"))){
-    let t=it.textContent; for(const m of matchers){m.re.lastIndex=0;t=t.replace(m.re,()=>{count++;return m.ph;});} it.textContent=t;
   }
   let out=new XMLSerializer().serializeToString(doc);
   out=out.replace(/(\bw:author=")[^"]*"/g,'$1Autor"').replace(/(\bw:initials=")[^"]*"/g,'$1A"');   // autoři revizí a komentářů
@@ -114,6 +111,14 @@ async function anonymizeDocx(buf,pairs){
       for(const m of rawMatchers){m.re.lastIndex=0;t=t.replace(m.re,()=>{total++;return m.ph;});} if(t!==raw) xml=t;}
     if(xml!==null){const b=enc.encode(xml);Object.assign(en,{method:0,data:b,csize:b.length,usize:b.length,crc:crc32(b)});}
   }
+  const decode=x=>x.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16))).replace(/&amp;/g,"&");
+  for(const en of entries){
+    if(!/\.(xml|rels)$/i.test(en.name)) continue;
+    const raw=dec.decode(await inflate(en));
+    for(const hay of [decode(raw), decode(raw.replace(/<[^>]*>/g,""))]){
+      for(const m of matchers){m.re.lastIndex=0; if(m.re.test(hay)) throw new Error("v části "+en.name+" zůstal údaj ("+m.ph+"), DOCX z bezpečnosti nevytvořím");}
+    }
+  }
   return {blob:zipEntries(entries),count:total};
 }
 
@@ -122,12 +127,18 @@ async function anonymizeDocx(buf,pairs){
 async function docxExtraText(buf){
   const dec=new TextDecoder(), parts=[];
   for(const en of unzipEntries(buf)){
-    if(!/^word\/(header\d*|footer\d*|comments)\.xml$/.test(en.name)) continue;
-    const doc=new DOMParser().parseFromString(dec.decode(await inflate(en)),"application/xml");
+    if(!/\.(xml|rels)$/i.test(en.name)) continue;
+    const raw=dec.decode(await inflate(en));
+    if(/\.rels$/i.test(en.name)){for(const m of raw.matchAll(/Target="([^"]+)"/g)) if(/^(mailto:|https?:|tel:)/i.test(m[1])) parts.push(m[1].replace(/&amp;/g,"&"));continue;}
+    const doc=new DOMParser().parseFromString(raw,"application/xml");
+    if(doc.getElementsByTagName("parsererror").length) continue;
+    const body=en.name==="word/document.xml";   // tělo už vrací mammoth — z něj jen kódy polí a smazaný text
     for(const p of Array.from(doc.getElementsByTagNameNS(DOCX_W,"p"))){
-      const t=Array.from(p.getElementsByTagNameNS(DOCX_W,"t")).filter(x=>nearestP(x)===p).map(x=>x.textContent).join("").trim();
+      const t=Array.from(p.getElementsByTagNameNS(DOCX_W,"*")).filter(x=>(body?(x.localName==="instrText"||x.localName==="delText"):/^(t|delText|instrText)$/.test(x.localName))&&nearestP(x)===p).map(x=>x.textContent).join("").trim();
       if(t&&!parts.includes(t)) parts.push(t);
     }
+    // texty grafů, diagramů a textových polí (DrawingML a:t)
+    for(const at of Array.from(doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main","t"))){const t=at.textContent.trim(); if(t&&!parts.includes(t)) parts.push(t);}
   }
   return parts.join("\n");
 }

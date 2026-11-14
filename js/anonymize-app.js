@@ -170,7 +170,8 @@ CATS.forEach(([name,types])=>{const b=document.createElement("button");b.type="b
   catsEl.appendChild(b);});
 input.addEventListener("input",()=>{if(lastDocx&&!lastDocx.edited){lastDocx.edited=true;docxBtn.title="Text jste upravili; DOCX se anonymizuje podle aktuální tabulky náhrad.";}});
 docxBtn.onclick=async function(){
-  if(!lastDocx)return; const b=this; b.disabled=true; const fst=document.getElementById("anon-fst");
+  if(!lastDocx)return; const b=this;
+  if(lastDocx.truncated){const f=document.getElementById("anon-fst");f.className="fst err";f.textContent="Dokument je delší než "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků, část by se neprohledala. DOCX proto nestáhnu, rozdělte ho prosím na menší části.";return;} b.disabled=true; const fst=document.getElementById("anon-fst");
   try{
     const {blob,count}=await anonymizeDocx(lastDocx.buf,lastReps);
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=lastDocx.name.replace(/\.docx$/i,"")+"-anonymizovano.docx";
@@ -193,7 +194,9 @@ run();
       if(f.size>20*1024*1024) throw new Error("soubor je moc velký (max 20 MB)");
       let txt=await extractText(f,msg=>{fst.className="fst";fst.textContent=msg;});
       lastDocx=/\.docx$/i.test(f.name)?{name:f.name,buf:await f.arrayBuffer()}:null;
-      if(lastDocx){const extra=await docxExtraText(lastDocx.buf); if(extra) txt+="\n\n— Záhlaví, zápatí a komentáře —\n"+extra;}
+      if(lastDocx){const extra=await docxExtraText(lastDocx.buf); if(extra) txt="— Záhlaví, zápatí, komentáře, odkazy a revize —\n"+extra+"\n— Text dokumentu —\n"+txt;
+        // oříznutý text = část Wordu by se neprohledala → DOCX nenabízet
+        if(txt.length>MAX_CHARS) lastDocx.truncated=true;}
       input.value=txt.slice(0,MAX_CHARS); run();
       fst.className="fst ok"; fst.textContent=f.name+" načten ("+input.value.length.toLocaleString("cs-CZ")+" znaků)";
     }catch(e){ fst.className="fst err"; fst.textContent="Soubor se nepodařilo načíst: "+e.message; }
