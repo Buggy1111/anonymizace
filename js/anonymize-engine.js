@@ -270,13 +270,22 @@ function anonymize(text,nerEnts){
     if(CITIES.has(w)) return assign(m,"MESTO","město/obec");
     return m;
   });
-  const seenOrig=new Set();
-  for(const r of [...reps].sort((a,b)=>b.original.length-a.original.length)){
-    // u částky i samotné číslo („12 345 Kč“ → skryje i holé „12 345“ v součtech)
+  // propagace: originál nalezený jednou se skryje i jinde v textu (u částky i holé číslo).
+  // Jeden průchod textem: kandidáti se hledají přes rychlý předvýběr (nejdelší slovo originálu musí v textu ještě být)
+  // a pak jedním spojeným regexem — dřív regex na každý originál zvlášť = kvadratický čas.
+  const ws=x=>x.replace(/\s+/g," ");
+  const map=new Map(), SPLIT=/[^\p{L}\p{N}]+/u, toks=new Set(out.split(SPLIT));   // slova textu jednou → O(1) dotaz
+  for(const r of reps){
     const cands=[r.original]; if(r.type==="CASTKA"){const num=(r.original.match(/\d[\d \u00a0.,]*\d/)||[""])[0]; if(num.replace(/\D/g,"").length>=4) cands.push(num);}
-    for(const o of cands){ if(o.length<4||seenOrig.has(o)) continue; seenOrig.add(o);
-    const re=new RegExp("(?<![\\p{L}\\p{N}])"+o.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+")+"(?![\\p{L}\\p{N}])","gu");
-    out=out.replace(re,r.placeholder); }
+    for(const o of cands){ const k=ws(o.trim()); if(k.length<4||map.has(k)) continue;
+      const piece=k.split(SPLIT).sort((a,b)=>b.length-a.length)[0];
+      if(!piece||!toks.has(piece)) continue;        // v textu už nikde není → nic k propagaci
+      map.set(k,r.placeholder); }
+  }
+  if(map.size){
+    const alts=[...map.keys()].sort((a,b)=>b.length-a.length).map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/ /g,"\\s+"));
+    const re=new RegExp("(?<![\\p{L}\\p{N}])(?:"+alts.join("|")+")(?![\\p{L}\\p{N}])","gu");
+    out=out.replace(re,m=>map.get(ws(m))||m);
   }
   return {anonymized:out,replacements:reps};
 }
@@ -303,7 +312,24 @@ function nerCategory(type){
   if(c==="T"||c==="t") return ["DATUM","datum"];
   return null;                                 // čísla (n*), média (m*), artefakty (o*) … neřešíme
 }
+// dlouhý text se posílá po částech (~15 000 znaků, řez na konci řádku/věty) — entity se
+// sloučí a anonymize() pak běží nad celým textem najednou, takže značky zůstanou konzistentní
+const NER_CHUNK=15000;
+function nerChunks(text){
+  const out=[]; let i=0;
+  while(i<text.length){
+    let end=Math.min(text.length,i+NER_CHUNK);
+    if(end<text.length){const w=text.slice(i,end); const cut=Math.max(w.lastIndexOf("\n"),w.lastIndexOf(". ")); if(cut>NER_CHUNK/2) end=i+cut+1;}
+    out.push(text.slice(i,end)); i=end;
+  }
+  return out;
+}
 async function fetchNER(text){
+  const ents=[];
+  for(const part of nerChunks(text)) ents.push(...await fetchNERPart(part));
+  return ents;
+}
+async function fetchNERPart(text){
   const r=await apiPost(NER_API_BASE+"/nametag/api/recognize",{data:text,output:"conll"});
   const d=await r.json();
   const ents=[];

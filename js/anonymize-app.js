@@ -2,7 +2,7 @@
 /* anonymize-app.js — DOM vrstva stránky anonymizéru.
    Závisí na anonymize-engine.js (anonymize/fetchNER/…) a extract-text.js (extractText). */
 
-const MAX_CHARS=20000; // jednotný limit vstupu (textarea má i maxlength, soubor se ořeže)
+const MAX_CHARS=500000; // limit dokumentu; delší se NEořízne potichu — výsledek je označen jako neúplný
 const input=document.getElementById("input"), output=document.getElementById("output");
 const tableEl=document.getElementById("table"), statsEl=document.getElementById("stats");
 const repcount=document.getElementById("repcount"), incount=document.getElementById("incount");
@@ -12,7 +12,7 @@ const ignEl=document.getElementById("ignored"), catsEl=document.getElementById("
 function clear(el){while(el.firstChild)el.removeChild(el.firstChild);}
 function span(cls,text){const s=document.createElement("span");if(cls)s.className=cls;s.textContent=text;return s;}
 
-let lastAnon="", lastMap=new Map(), lastReps=[], lastDocx=null;
+let lastAnon="", lastMap=new Map(), lastReps=[], lastDocx=null, lastIncomplete=false;
 // ── co skrývat: skupiny druhů (vypnutá skupina se vrátí do textu) + ručně vrácené falešné nálezy ──
 const CATS=[
   ["Osoby",["OSOBA"]],["Firmy a úřady",["FIRMA","INSTITUCE"]],["Adresy",["MESTO","ULICE","CP","PSC"]],
@@ -110,7 +110,7 @@ const EXAMPLES={
   "Lékařská zpráva":"Pacientka Marie Nováková, nar. 14.6.1975, rodné číslo 755614/1234, bytem Tyršova 8, Olomouc, byla přijata 12.5.2026 na interní oddělení s diagnózou arteriální hypertenze. Ošetřující lékař MUDr. Petr Svoboda, kontakt petr.svoboda@nemocnice.cz, tel. 585 111 222. Doporučena kontrola za 14 dní."
 };
 // ── režim (lokální regex / plný NER) + debounce ──
-let nerTimer=null, nerSeq=0, lastEnts=null;
+let nerTimer=null, nerSeq=0, lastEnts=null, localTimer=null;
 function currentMode(){const el=document.querySelector('input[name="mode"]:checked');return el?el.value:"local";}
 // auto-grow: vstupní pole roste s obsahem (jako výstup), uživatel nemusí scrolovat
 function autoGrow(){input.style.overflowY="hidden";input.style.height="auto";input.style.height=Math.max(input.scrollHeight,300)+"px";}
@@ -121,6 +121,9 @@ function run(){
   incount.textContent=text.length.toLocaleString("cs-CZ")+" / "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků";
   if(currentMode()==="local"){
     nerinfo.textContent="";
+    // dlouhý text: nepřepočítávat při každém stisku klávesy
+    clearTimeout(localTimer);
+    if(text.length>30000){localTimer=setTimeout(()=>{const r=anon(input.value);render(r.anonymized,r.replacements);},250);return;}
     const r=anon(text); render(r.anonymized,r.replacements);
     return;
   }
@@ -146,12 +149,12 @@ function run(){
 const exWrap=document.getElementById("examples");
 Object.keys(EXAMPLES).forEach(name=>{
   const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=name;b.setAttribute("aria-pressed",String(name==="Právní spis"));
-  b.onclick=function(){input.value=EXAMPLES[name];run();exWrap.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));};exWrap.appendChild(b);
+  b.onclick=function(){input.value=EXAMPLES[name];lastIncomplete=false;lastDocx=null;document.getElementById("anon-fst").textContent="";run();exWrap.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",String(c===b)));};exWrap.appendChild(b);
 });
 document.getElementById("copy").onclick=function(){
   const b=document.getElementById("copy");
   const done=t=>{b.textContent=t;setTimeout(function(){b.textContent="Kopírovat";},1600);};
-  if(navigator.clipboard) navigator.clipboard.writeText(lastAnon).then(()=>done("Zkopírováno"),()=>done("Kopírování se nepovedlo"));
+  if(navigator.clipboard) navigator.clipboard.writeText(lastAnon).then(()=>done(lastIncomplete?"Zkopírováno — POZOR, dokument je NEÚPLNÝ":"Zkopírováno"),()=>done("Kopírování se nepovedlo"));
   else done("Kopírování se nepovedlo");
 };
 input.addEventListener("input",run);
@@ -193,20 +196,21 @@ run();
     fst.className="fst"; fst.textContent="Načítám "+f.name+"…";
     try{
       if(f.size>20*1024*1024) throw new Error("soubor je moc velký (max 20 MB)");
-      let txt=await extractText(f,msg=>{fst.className="fst";fst.textContent=msg;});
+      const info={}; let txt=await extractText(f,msg=>{fst.className="fst";fst.textContent=msg;},info);
       lastDocx=/\.docx$/i.test(f.name)?{name:f.name,buf:await f.arrayBuffer()}:null;
       if(lastDocx){const extra=await docxExtraText(lastDocx.buf); if(extra) txt="— Záhlaví, zápatí, komentáře, odkazy a revize —\n"+extra+"\n— Text dokumentu —\n"+txt;
         // oříznutý text = část Wordu by se neprohledala → DOCX nenabízet
         if(txt.length>MAX_CHARS) lastDocx.truncated=true;}
       input.value=txt.slice(0,MAX_CHARS); run();
-      fst.className="fst ok"; fst.textContent=f.name+" načten ("+input.value.length.toLocaleString("cs-CZ")+" znaků)"+(txt.length>MAX_CHARS?". Pozor: zobrazeno jen prvních "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků, delší dokument nahrajte spolu s dalším souborem — hromadné zpracování projde celý text.":"");
+      const d=describeExtract(f.name,txt.length,info,MAX_CHARS);
+      lastIncomplete=d.incomplete; fst.className=d.incomplete?"fst err":"fst ok"; fst.textContent=d.text;
     }catch(e){ fst.className="fst err"; fst.textContent="Soubor se nepodařilo načíst: "+e.message; }
     fi.value="";
   });
 })();
 
 // ── hromadně: víc souborů najednou → ZIP s anonymizovanými soubory (vše v prohlížeči) ──
-const BATCH_MAX=200000;   // znaků na soubor; delší se přeskočí (ať prohlížeč nezamrzne)
+const BATCH_MAX=MAX_CHARS;   // znaků na soubor; delší se zpracuje jen zčásti a je označen NEÚPLNÉ
 async function batch(files,fst){
   const enc=new TextEncoder(), entries=[], log=[];
   const add=(name,bytes)=>entries.push({name,nameBytes:enc.encode(name),flags:0x0800,method:0,crc:crc32(bytes),csize:bytes.length,usize:bytes.length,data:bytes});
@@ -216,22 +220,24 @@ async function batch(files,fst){
     fst.className="fst"; fst.textContent=`Zpracovávám ${k+1} z ${files.length}: ${f.name}…`;
     try{
       if(f.size>20*1024*1024) throw new Error("větší než 20 MB");
-      let txt=await extractText(f,msg=>{fst.textContent=`${k+1} z ${files.length}: ${msg}`;});
+      const info={}; let txt=await extractText(f,msg=>{fst.textContent=`${k+1} z ${files.length}: ${msg}`;},info);
       const isDocx=/\.docx$/i.test(f.name), buf=isDocx?await f.arrayBuffer():null;
       if(isDocx){const extra=await docxExtraText(buf); if(extra) txt=extra+"\n"+txt;}
-      if(txt.length>BATCH_MAX) throw new Error("delší než "+BATCH_MAX.toLocaleString("cs-CZ")+" znaků");
-      const r=anon(txt);
+      const d=describeExtract(f.name,txt.length,info,BATCH_MAX);
+      if(isDocx&&d.incomplete) throw new Error("Word je delší než "+BATCH_MAX.toLocaleString("cs-CZ")+" znaků — neúplný DOCX nevydám");
+      const r=anon(txt.slice(0,BATCH_MAX));
+      const tag=d.incomplete?"-NEUPLNE":"";
       if(isDocx){const {blob}=await anonymizeDocx(buf,r.replacements);add(uniq(base+"-anonymizovano.docx"),new Uint8Array(await blob.arrayBuffer()));}
-      else add(uniq(base+"-anonymizovano.txt"),enc.encode(r.anonymized));
-      log.push(`OK     ${f.name}: ${r.replacements.length} náhrad`);
+      else add(uniq(base+tag+"-anonymizovano.txt"),enc.encode((d.incomplete?"!!! NEÚPLNÉ — "+d.text+"\n\n":"")+r.anonymized));
+      log.push(`${d.incomplete?"NEÚPLNÉ":"OK     "} ${d.text} — ${r.replacements.length} náhrad`);
     }catch(e){log.push(`CHYBA  ${f.name}: ${e.message} — soubor není v ZIPu`);}
   }
   add("souhrn.txt",enc.encode("Anonymizace — https://anonymizace.js.org (zpracováno ve vašem prohlížeči)\n"+
     "Značky (OSOBA1, RC1…) se číslují v každém souboru zvlášť. Výsledek před sdílením zkontrolujte.\n\n"+log.join("\n")+"\n"));
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([zipEntries(entries)],{type:"application/zip"}));a.download="anonymizovano.zip";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-  const bad=log.filter(l=>l.startsWith("CHYBA")).length;
-  fst.className=bad?"fst err":"fst ok"; fst.textContent=`Staženo anonymizovano.zip: ${files.length-bad} z ${files.length} souborů`+(bad?`, ${bad} se nepodařilo (viz souhrn.txt)`:"")+".";
+  const bad=log.filter(l=>l.startsWith("CHYBA")).length, part=log.filter(l=>l.startsWith("NEÚPLNÉ")).length;
+  fst.className=bad||part?"fst err":"fst ok"; fst.textContent=`Staženo anonymizovano.zip: ${files.length-bad} z ${files.length} souborů`+(bad?`, ${bad} se nepodařilo`:"")+(part?`, ${part} NEÚPLNÉ`:"")+(bad||part?" (viz souhrn.txt)":"")+".";
 }
 // ── uložit jako PDF: tisk jen anonymizovaného textu (prohlížeč nabídne „Uložit jako PDF“) ──
 document.getElementById("pdf-dl").addEventListener("click",function(){
