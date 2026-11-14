@@ -59,8 +59,9 @@ csp-hashes.mjs      — po úpravě JSON-LD spusť `node csp-hashes.mjs` (přepo
 ## Jak to funguje
 
 Texty jdou **přímo z prohlížeče** na veřejné akademické API ÚFAL LINDAT
-(`https://lindat.mff.cuni.cz/services`). **Žádný vlastní backend, žádný API klíč,
-nic se neukládá.** Anonymizér navíc nabízí plně offline lokální mód, kde text
+(`https://lindat.mff.cuni.cz/services`). **Žádný vlastní backend, žádný API klíč;
+web sám nic neukládá.** Podmínky ÚFAL ale dovolují zaslaná data použít ke zlepšení
+jejich služeb — proto citlivé texty jen v lokálním režimu. Anonymizér navíc nabízí plně offline lokální mód, kde text
 prohlížeč vůbec neopustí. Limit 20 000 znaků na požadavek.
 
 ## Vývoj
