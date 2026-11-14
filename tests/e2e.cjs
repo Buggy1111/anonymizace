@@ -27,7 +27,7 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   t('DOCX: žádný originál v souboru',!SECRETS.concat(['605 999','Petr Svoboda','Marie Svobodová']).some(s=>raw.includes(s)));
   const [z]=await Promise.all([p.waitForEvent('download',{timeout:300000}),p.setInputFiles('#anon-file',[path.join(F,'mixed.pdf'),long,path.join(F,'zaloba.docx')])]);
   const zp=path.join(tmp,'b.zip'); await z.saveAs(zp); const names=require('child_process').execFileSync('unzip',['-Z1',zp]).toString();
-  t('hromadně: neúplné soubory mají -NEUPLNE',/mixed-NEUPLNE/.test(names)&&/long-NEUPLNE/.test(names),names);
+  t('hromadně: neúplné soubory mají -NEUPLNE',/dokument-01-NEUPLNE/.test(names)&&/dokument-02-NEUPLNE/.test(names)&&!/mixed|long|zaloba/.test(names),names);
   // přímý export PDF (jsPDF v prohlížeči): prázdný vstup, diakritika, více stran, žádný originál
   await p.fill('#input','');await p.waitForTimeout(400);await p.click('#pdf-dl');await p.waitForTimeout(400);
   t('PDF: prázdný vstup = srozumitelná hláška',/Není co uložit/.test(await p.textContent('#anon-fst')));

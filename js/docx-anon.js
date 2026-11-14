@@ -109,7 +109,7 @@ async function anonymizeDocx(buf,pairs){
   for(const en of entries){
     let xml=null;
     if(DOCX_TEXT_PARTS.test(en.name)){const r=anonymizeWordXml(dec.decode(await inflate(en)),matchers);xml=r.xml;total+=r.count;}
-    else if(en.name==="docProps/core.xml") xml=dec.decode(await inflate(en)).replace(/(<(dc:creator|cp:lastModifiedBy)>)[^<]*(<\/\2>)/g,"$1$3");
+    else if(en.name==="docProps/core.xml") xml=dec.decode(await inflate(en)).replace(/(<(dc:creator|cp:lastModifiedBy|dc:title|dc:subject|cp:keywords|dc:description)>)[^<]*(<\/\2>)/g,"$1$3");
     else if(en.name==="docProps/app.xml") xml=dec.decode(await inflate(en)).replace(/(<(Company|Manager)>)[^<]*(<\/\2>)/g,"$1$3");
     else if(en.name==="word/people.xml") xml=dec.decode(await inflate(en)).replace(/(\bw15:author=")[^"]*"/g,'$1Autor"');
     // všechny ostatní XML části (odkazy v .rels, grafy, diagramy, vlastní XML…) — náhrada v surovém XML
