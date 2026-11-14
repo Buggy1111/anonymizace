@@ -64,7 +64,7 @@
       <div class="seg" id="examples" role="group" aria-label="Ukázkové texty"></div>
     </div>
     <div class="left">
-      <label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" id="anon-file" class="sr"></label>
+      <label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" multiple id="anon-file" class="sr"></label>
       <span id="anon-fst" class="fst" aria-live="polite"></span>
     </div>
   </div>
@@ -75,7 +75,7 @@
     <div class="panes">
       <div class="pane"><div class="ph"><label for="input">Váš text</label><span id="incount">0 znaků</span></div>
         <textarea id="input" maxlength="20000" spellcheck="false" placeholder="Vložte český text se jmény, rodnými čísly, IČO, telefony…"></textarea></div>
-      <div class="pane"><div class="ph"><span>Anonymizováno</span><span class="acts"><button type="button" class="copy" id="docx-dl" hidden>Stáhnout DOCX</button><button type="button" class="copy" id="copy">Kopírovat</button></span></div>
+      <div class="pane"><div class="ph"><span>Anonymizováno</span><span class="acts"><button type="button" class="copy" id="docx-dl" hidden>Stáhnout DOCX</button><button type="button" class="copy" id="pdf-dl">Uložit PDF</button><button type="button" class="copy" id="copy">Kopírovat</button></span></div>
         <div class="out" id="output" aria-live="polite"></div></div>
     </div>
   </div>

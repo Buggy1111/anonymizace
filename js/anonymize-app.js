@@ -188,6 +188,7 @@ run();
   const fi=document.getElementById("anon-file"), fst=document.getElementById("anon-fst");
   if(!fi) return;
   fi.addEventListener("change",async function(){
+    if(fi.files&&fi.files.length>1){const list=[...fi.files];fi.value="";return batch(list,fst);}
     const f=fi.files&&fi.files[0]; if(!f) return;
     fst.className="fst"; fst.textContent="Načítám "+f.name+"…";
     try{
@@ -198,8 +199,46 @@ run();
         // oříznutý text = část Wordu by se neprohledala → DOCX nenabízet
         if(txt.length>MAX_CHARS) lastDocx.truncated=true;}
       input.value=txt.slice(0,MAX_CHARS); run();
-      fst.className="fst ok"; fst.textContent=f.name+" načten ("+input.value.length.toLocaleString("cs-CZ")+" znaků)";
+      fst.className="fst ok"; fst.textContent=f.name+" načten ("+input.value.length.toLocaleString("cs-CZ")+" znaků)"+(txt.length>MAX_CHARS?". Pozor: zobrazeno jen prvních "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků, delší dokument nahrajte spolu s dalším souborem — hromadné zpracování projde celý text.":"");
     }catch(e){ fst.className="fst err"; fst.textContent="Soubor se nepodařilo načíst: "+e.message; }
     fi.value="";
   });
 })();
+
+// ── hromadně: víc souborů najednou → ZIP s anonymizovanými soubory (vše v prohlížeči) ──
+const BATCH_MAX=200000;   // znaků na soubor; delší se přeskočí (ať prohlížeč nezamrzne)
+async function batch(files,fst){
+  const enc=new TextEncoder(), entries=[], log=[];
+  const add=(name,bytes)=>entries.push({name,nameBytes:enc.encode(name),flags:0x0800,method:0,crc:crc32(bytes),csize:bytes.length,usize:bytes.length,data:bytes});
+  const used=new Set(), uniq=n=>{let x=n,i=2;while(used.has(x))x=n.replace(/(\.[^.]+)$/,"-"+(i++)+"$1");used.add(x);return x;};
+  for(let k=0;k<files.length;k++){
+    const f=files[k], base=f.name.replace(/\.[^.]+$/,"");
+    fst.className="fst"; fst.textContent=`Zpracovávám ${k+1} z ${files.length}: ${f.name}…`;
+    try{
+      if(f.size>20*1024*1024) throw new Error("větší než 20 MB");
+      let txt=await extractText(f,msg=>{fst.textContent=`${k+1} z ${files.length}: ${msg}`;});
+      const isDocx=/\.docx$/i.test(f.name), buf=isDocx?await f.arrayBuffer():null;
+      if(isDocx){const extra=await docxExtraText(buf); if(extra) txt=extra+"\n"+txt;}
+      if(txt.length>BATCH_MAX) throw new Error("delší než "+BATCH_MAX.toLocaleString("cs-CZ")+" znaků");
+      const r=anon(txt);
+      if(isDocx){const {blob}=await anonymizeDocx(buf,r.replacements);add(uniq(base+"-anonymizovano.docx"),new Uint8Array(await blob.arrayBuffer()));}
+      else add(uniq(base+"-anonymizovano.txt"),enc.encode(r.anonymized));
+      log.push(`OK     ${f.name}: ${r.replacements.length} náhrad`);
+    }catch(e){log.push(`CHYBA  ${f.name}: ${e.message} — soubor není v ZIPu`);}
+  }
+  add("souhrn.txt",enc.encode("Anonymizace — https://anonymizace.js.org (zpracováno ve vašem prohlížeči)\n"+
+    "Značky (OSOBA1, RC1…) se číslují v každém souboru zvlášť. Výsledek před sdílením zkontrolujte.\n\n"+log.join("\n")+"\n"));
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([zipEntries(entries)],{type:"application/zip"}));a.download="anonymizovano.zip";
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  const bad=log.filter(l=>l.startsWith("CHYBA")).length;
+  fst.className=bad?"fst err":"fst ok"; fst.textContent=`Staženo anonymizovano.zip: ${files.length-bad} z ${files.length} souborů`+(bad?`, ${bad} se nepodařilo (viz souhrn.txt)`:"")+".";
+}
+// ── uložit jako PDF: tisk jen anonymizovaného textu (prohlížeč nabídne „Uložit jako PDF“) ──
+document.getElementById("pdf-dl").addEventListener("click",function(){
+  let sheet=document.getElementById("print-sheet");
+  if(!sheet){sheet=document.createElement("div");sheet.id="print-sheet";document.body.appendChild(sheet);}
+  sheet.textContent=lastAnon;
+  document.documentElement.classList.add("printing");
+  const done=()=>{document.documentElement.classList.remove("printing");window.removeEventListener("afterprint",done);};
+  window.addEventListener("afterprint",done); window.print(); setTimeout(done,60000);
+});
