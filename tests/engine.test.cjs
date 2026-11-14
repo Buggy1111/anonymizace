@@ -3,9 +3,8 @@
 const fs=require('fs'),path=require('path'),os=require('os');
 const NERC=path.join(__dirname,'..','js','ner-common.js');
 const ENGINE=path.join(__dirname,'..','js','anonymize-engine.js');
-const tmp=path.join(os.tmpdir(),'anon-engine-test-'+process.pid+'.cjs');
-fs.writeFileSync(tmp, fs.readFileSync(NERC,'utf8')+'\n'+fs.readFileSync(ENGINE,'utf8')+'\nmodule.exports={anonymize,validRC,validICO,luhn,validIBAN};\n');
-const {anonymize,validRC,validICO}=require(tmp);
+// kód enginu se načte do paměti (žádný dočasný soubor)
+const {anonymize,validRC,validICO}=new Function(fs.readFileSync(NERC,'utf8')+'\n'+fs.readFileSync(ENGINE,'utf8')+'\nreturn {anonymize,validRC,validICO,luhn,validIBAN};')();
 
 let pass=0,fail=0;
 function t(name,cond,detail){ if(cond){pass++;console.log("  ok  "+name);} else {fail++;console.log("  FAIL "+name+(detail?" — "+detail:""));} }
@@ -222,6 +221,5 @@ console.log("ReDoS — 20 000 znaků nepříjemného vstupu do 300 ms (audit 14.
   }
 }
 
-try{fs.unlinkSync(tmp);}catch(_){}
 console.log("\n"+pass+" passed, "+fail+" failed");
 process.exit(fail?1:0);

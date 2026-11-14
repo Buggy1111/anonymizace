@@ -1,9 +1,7 @@
 // tests/corpus.test.cjs — společný smyšlený korpus (stejný jako v anonymize-mcp/tests/corpus).
 // Měří hlavně ÚNIKY (secret zůstal ve výstupu) a přetažení (must_keep zmizelo).
 const fs=require('fs'),path=require('path'),os=require('os');
-const tmp=path.join(os.tmpdir(),'anon-corpus-'+process.pid+'.cjs');
-fs.writeFileSync(tmp,fs.readFileSync(path.join(__dirname,'..','js','ner-common.js'),'utf8')+'\n'+fs.readFileSync(path.join(__dirname,'..','js','anonymize-engine.js'),'utf8')+'\nmodule.exports={anonymize};\n');
-const {anonymize}=require(tmp); fs.unlinkSync(tmp);
+const {anonymize}=new Function(fs.readFileSync(path.join(__dirname,'..','js','ner-common.js'),'utf8')+'\n'+fs.readFileSync(path.join(__dirname,'..','js','anonymize-engine.js'),'utf8')+'\nreturn {anonymize};')();
 const C=JSON.parse(fs.readFileSync(path.join(__dirname,'corpus.json'),'utf8'));
 let leaks=0,over=0,total=0;
 for(const d of C.docs){const o=anonymize(d.text,null).anonymized;
