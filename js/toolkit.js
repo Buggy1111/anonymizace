@@ -57,7 +57,7 @@ $("ner-go").onclick=async function(){const b=this,st=$("ner-st"),out=$("ner-out"
     else ents.forEach(e=>{const s=document.createElement("span");s.className="ent ent-"+e.type;
       s.textContent=e.text+" · "+(NER_LABEL[e.type]||e.type);s.title=NER_LABEL[e.type]||e.type;out.appendChild(s);});
     setStatus(st,ents.length+(ents.length===1?" entita":ents.length>=2&&ents.length<=4?" entity":" entit"),"ok");
-  }catch(e){setStatus(st,"Server neodpověděl: "+e.message,"err");}finally{b.disabled=false;}};
+  }catch(e){setStatus(st,"Server LINDAT (ÚFAL) je teď nedostupný, zkuste to prosím později. Anonymizér běží dál v lokálním režimu. ("+e.message+")","err");}finally{b.disabled=false;}};
 
 // ── Morfologie (UDPipe) ──
 const UPOS={NOUN:"podst. jméno",PROPN:"vlastní jméno",VERB:"sloveso",AUX:"pom. sloveso",ADJ:"příd. jméno",
@@ -76,7 +76,7 @@ $("morf-go").onclick=async function(){const b=this,st=$("morf-st"),out=$("morf-o
       tr.appendChild(mk("w",c[1]));tr.appendChild(mk("l",c[2]));tr.appendChild(mk("p",UPOS[c[3]]||c[3]));
       tr.appendChild(mk("f",c[5]==="_"?"":c[5]));tb.appendChild(tr);});
     tbl.appendChild(tb);out.appendChild(tbl);setStatus(st,n+" slov a znamének","ok");
-  }catch(e){setStatus(st,"Server neodpověděl: "+e.message,"err");}finally{b.disabled=false;}};
+  }catch(e){setStatus(st,"Server LINDAT (ÚFAL) je teď nedostupný, zkuste to prosím později. Anonymizér běží dál v lokálním režimu. ("+e.message+")","err");}finally{b.disabled=false;}};
 
 // ── Korektor ──
 $("korek-go").onclick=async function(){const b=this,st=$("korek-st"),out=$("korek-out");if(!guard($("korek-in").value,st,out))return;b.disabled=true;setStatus(st,"Zpracovává Korektor…");
@@ -90,7 +90,7 @@ $("korek-go").onclick=async function(){const b=this,st=$("korek-st"),out=$("kore
         else out.appendChild(document.createTextNode(w));});
     } else { out.appendChild(document.createTextNode(corrected)); } // jiný počet tokenů → čistý text
     setStatus(st,"Hotovo","ok");
-  }catch(e){setStatus(st,"Server neodpověděl: "+e.message,"err");}finally{b.disabled=false;}};
+  }catch(e){setStatus(st,"Server LINDAT (ÚFAL) je teď nedostupný, zkuste to prosím později. Anonymizér běží dál v lokálním režimu. ("+e.message+")","err");}finally{b.disabled=false;}};
 
 // ── Překlad (Charles Translator) ──
 const LANGS={cs:"čeština",en:"angličtina",de:"němčina",fr:"francouzština",pl:"polština",ru:"ruština",uk:"ukrajinština"};
@@ -104,7 +104,7 @@ $("prek-go").onclick=async function(){const b=this,st=$("prek-st"),out=$("prek-o
   try{const r=await apiPost(API+"/translation/api/v2/languages?src="+encodeURIComponent(src)+"&tgt="+encodeURIComponent(tgt),{input_text:$("prek-in").value});
     const txt=await r.text();clr(out);out.appendChild(document.createTextNode(txt.trim()));
     setStatus(st,LANGS[src]+" → "+LANGS[tgt],"ok");
-  }catch(e){setStatus(st,"Server neodpověděl: "+e.message,"err");}finally{b.disabled=false;}};
+  }catch(e){setStatus(st,"Server LINDAT (ÚFAL) je teď nedostupný, zkuste to prosím později. Anonymizér běží dál v lokálním režimu. ("+e.message+")","err");}finally{b.disabled=false;}};
 
 // ── počítadlo znaků + auto-grow u každého textového pole ──
 function updateCC(ta){const cc=document.getElementById(ta.dataset.cc);if(!cc)return;
