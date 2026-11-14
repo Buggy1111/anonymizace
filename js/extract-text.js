@@ -49,11 +49,36 @@ async function ocrWorker(progress){
   })();
   try{ return await ocrWorkerP; }catch(e){ ocrWorkerP=null; throw e; }
 }
+// Úprava obrázku před OCR: správná orientace z EXIF (fotky z mobilu), velikost ~2 400 px
+// na delší straně (malé fotky zvětšit, obří zmenšit), šedá a roztažení kontrastu (1.–99. percentil).
+async function ocrPrepare(source,rotate){
+  const bmp=source instanceof HTMLCanvasElement?source:await createImageBitmap(source,{imageOrientation:"from-image"});
+  const W=bmp.width,H=bmp.height,long=Math.max(W,H),k=Math.min(1.5,Math.max(0.35,2400/long));
+  const w=Math.round(W*k),h=Math.round(H*k),sw=rotate%180?h:w,sh=rotate%180?w:h;
+  const c=document.createElement("canvas");c.width=sw;c.height=sh;const g=c.getContext("2d",{willReadFrequently:true});
+  g.imageSmoothingQuality="high";g.translate(sw/2,sh/2);g.rotate(rotate*Math.PI/180);g.drawImage(bmp,-w/2,-h/2,w,h);
+  if(bmp.close)bmp.close();
+  const img=g.getImageData(0,0,sw,sh),d=img.data,hist=new Uint32Array(256);
+  for(let i=0;i<d.length;i+=4){const y=(d[i]*299+d[i+1]*587+d[i+2]*114)/1000|0;d[i]=y;hist[y]++;}
+  const n=d.length/4;let lo=0,hi=255,acc=0;
+  for(;lo<255&&(acc+=hist[lo])<n*0.01;lo++);acc=0;for(;hi>0&&(acc+=hist[hi])<n*0.01;hi--);
+  const span=Math.max(1,hi-lo);
+  for(let i=0;i<d.length;i+=4){const v=Math.max(0,Math.min(255,(d[i]-lo)*255/span));d[i]=d[i+1]=d[i+2]=v;}
+  g.putImageData(img,0,0);return c;
+}
 async function ocrImage(source,progress,label){
   const w=await ocrWorker(progress);
   if(progress) progress(label||"Rozpoznávám text…");
-  const r=await w.recognize(source);
-  return (r.data&&r.data.text||"").replace(/[ \t]+\n/g,"\n").trim();
+  let best=await w.recognize(await ocrPrepare(source,0));
+  // nízká jistota u fotky → možná je otočená; zkusí 90°, 270° a 180° a vezme nejlepší výsledek
+  if(!(source instanceof HTMLCanvasElement)&&best.data.confidence<45){
+    for(const rot of [90,270,180]){
+      if(progress) progress("Text je nejasný, zkouším fotku otočit…");
+      const r=await w.recognize(await ocrPrepare(source,rot));
+      if(r.data.confidence>best.data.confidence+8) best=r;
+    }
+  }
+  return (best.data&&best.data.text||"").replace(/[ \t]+\n/g,"\n").trim();
 }
 async function ocrPdf(pdf,progress){
   const n=Math.min(pdf.numPages,OCR_MAX_PAGES); let out="";
