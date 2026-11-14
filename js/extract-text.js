@@ -1,9 +1,9 @@
 "use strict";
 /* extract-text.js — extrakce textu z nahraného souboru (TXT/PDF/DOCX), vše v prohlížeči.
-   Sdíleno anonymizérem i toolkitem. Vyžaduje pdf.js a mammoth.js (načtené z CDN). */
+   Sdíleno anonymizérem i toolkitem. Vyžaduje pdf.js a mammoth.js (js/vendor/, vlastní kopie). */
 // pdf.js 5.x je ES modul (type="module" = deferred) → workerSrc nastavujeme líně
 // až při prvním použití, ne při načtení tohoto (klasického) skriptu.
-const PDF_WORKER="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs";
+const PDF_WORKER="js/vendor/pdf.worker.min.mjs"; // vlastní kopie (ověřená proti cdnjs i npm), worker nejde chránit SRI
 
 async function extractText(file){
   const name=(file.name||"").toLowerCase();
@@ -11,7 +11,7 @@ async function extractText(file){
   if(name.endsWith(".pdf")||file.type==="application/pdf"){
     if(!window.pdfjsLib) throw new Error("pdf.js se nenačetlo");
     if(!pdfjsLib.GlobalWorkerOptions.workerSrc) pdfjsLib.GlobalWorkerOptions.workerSrc=PDF_WORKER;
-    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+    const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer(),isEvalSupported:false}).promise;
     let out="";
     for(let i=1;i<=pdf.numPages;i++){ const pg=await pdf.getPage(i); const tc=await pg.getTextContent();
       out+=tc.items.map(it=>it.str).join(" ")+"\n"; }

@@ -1,0 +1,5 @@
+Knihovny přibalené beze změn (otisky ověřené proti cdnjs i npm, 14. 11. 2026):
+
+pdf.min.mjs, pdf.worker.min.mjs — PDF.js 5.4.149, Mozilla, Apache License 2.0 — https://github.com/mozilla/pdf.js
+mammoth.browser.min.js — mammoth 1.11.0, Michael Williamson, BSD 2-Clause — https://github.com/mwilliamson/mammoth.js
+lenis.min.js — Lenis 1.1.13, darkroom.engineering, MIT — https://github.com/darkroomengineering/lenis

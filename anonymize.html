@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com 'sha256-rNsKoWhVmr++iFWgiLqCXG9qlbNV24SLz0M3RKARQmQ='; connect-src 'self' https://lindat.mff.cuni.cz https://cdnjs.cloudflare.com; worker-src 'self' https://cdnjs.cloudflare.com blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-rNsKoWhVmr++iFWgiLqCXG9qlbNV24SLz0M3RKARQmQ='; connect-src 'self' https://lindat.mff.cuni.cz; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Anonymizér českého textu online zdarma — jména, rodná čísla, IČO, účty (GDPR)</title>
 <meta name="description" content="Anonymizujte český text přímo v prohlížeči. Jména, rodná čísla, adresy, telefony, IČO, účty i částky se nahradí značkami OSOBA1, RC1… Lokální offline režim nebo přesný režim s NER od ÚFAL. Nahrajte PDF, Word nebo TXT.">
@@ -120,8 +120,8 @@
 </div></footer>
 
 <script src="js/vendor/lenis.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs" type="module" integrity="sha512-54wsEqEFNC3gPwTKkiB4A+/xQXSJIcPnRIjz6Gg8JZ+H+2bthEcYOFCk978ogjyXYaivHJpL/flsKCyrO2lMRg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js" integrity="sha512-Bpw1G70k1RT4pADRSajgVrcxVbAl0Ymw1UVr1EmeXxidZLp5MzAqkBx3zPK02UuvCnz4Ly7trvpJ1Zu/t2X1kQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="js/vendor/pdf.min.mjs" type="module" integrity="sha512-54wsEqEFNC3gPwTKkiB4A+/xQXSJIcPnRIjz6Gg8JZ+H+2bthEcYOFCk978ogjyXYaivHJpL/flsKCyrO2lMRg=="></script>
+<script src="js/vendor/mammoth.browser.min.js" integrity="sha512-Bpw1G70k1RT4pADRSajgVrcxVbAl0Ymw1UVr1EmeXxidZLp5MzAqkBx3zPK02UuvCnz4Ly7trvpJ1Zu/t2X1kQ=="></script>
 <script src="js/extract-text.js"></script>
 <script src="js/ner-common.js"></script>
 <script src="js/anonymize-engine.js"></script>

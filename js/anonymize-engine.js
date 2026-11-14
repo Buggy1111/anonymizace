@@ -60,9 +60,11 @@ function validDayMonth(s){                     // 1.1.99 — den 1–31, měsíc
 const MESIC="(?:led(?:na|en)|únor[ay]?|březn[a]?|březen|dub(?:na|en)|květ(?:na|en)|červ(?:na|en|enec|ence)|srp(?:na|en)|září|říj(?:na|en)|listopad[ua]?|prosin(?:ce|ec))";
 const STRUCT = [
   {key:"URL",     label:"URL",            re:/\bhttps?:\/\/[^\s<>"]+/gi},
-  {key:"EMAIL",   label:"email",          re:/\b[\w.+-]+@[\w-]+\.[\w.-]{2,}\b/g},
+  // (?<![\w.+-]) + {1,64}: e-mail začíná jen na začátku „slova" → žádné kvadratické zpětné hledání
+  // na dlouhých úsecích bez @ (ReDoS: 20 000 × „a." trvalo > 1 s)
+  {key:"EMAIL",   label:"email",          re:/(?<![\w.+-])[\w.+-]{1,64}@[\w-]+\.[\w.-]{2,}\b/g},
   // e-mail maskovaný proti robotům: „jan.novak(at)seznam.cz", „jan [at] seznam.cz", „zavináč"
-  {key:"EMAIL",   label:"email",          re:/\b[\w.+-]+\s?(?:\(at\)|\[at\]|\{at\}|\s(?:at|zavináč)\s)\s?[\w-]+(?:\.|\s?\(dot\)\s?|\s?\[dot\]\s?)[\w.-]{2,}\b/giu},
+  {key:"EMAIL",   label:"email",          re:/(?<![\w.+-])[\w.+-]{1,64}\s?(?:\(at\)|\[at\]|\{at\}|\s(?:at|zavináč)\s)\s?[\w-]+(?:\.|\s?\(dot\)\s?|\s?\[dot\]\s?)[\w.-]{2,}\b/giu},
   // IPv4 (oktety 0–255); ne za slovem verze/build („build 1.2.34.5")
   {key:"IP",      label:"IP adresa",      re:/(?<![\d.])(?<!(?:[Vv]erz\p{L}*|[Vv]ersion|[Bb]uild|[Rr]elease|[Vv]er\.|\bv)\s?)(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])/gu},
   {key:"TOKEN",   label:"API token",      re:/\b(?:sk-[A-Za-z0-9-]{20,}|github_pat_[A-Za-z0-9_]{60,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35})\b/g},

@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com 'sha256-7+rA+rSMD80xcPwWbnoCNmVybzgrks2I266nUrvawAU='; connect-src 'self' https://lindat.mff.cuni.cz https://cdnjs.cloudflare.com; worker-src 'self' https://cdnjs.cloudflare.com blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-7+rA+rSMD80xcPwWbnoCNmVybzgrks2I266nUrvawAU='; connect-src 'self' https://lindat.mff.cuni.cz; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Nástroje pro češtinu online — rozpoznání entit, morfologie, pravopis a překlad</title>
 <meta name="description" content="České jazykové nástroje přímo v prohlížeči: rozpoznání entit (NER), morfologická analýza, oprava pravopisu a diakritiky a strojový překlad. Zdarma, postaveno na nástrojích ÚFAL MFF UK.">
@@ -114,8 +114,8 @@
 </div></footer>
 
 <script src="js/vendor/lenis.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs" type="module" integrity="sha512-54wsEqEFNC3gPwTKkiB4A+/xQXSJIcPnRIjz6Gg8JZ+H+2bthEcYOFCk978ogjyXYaivHJpL/flsKCyrO2lMRg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.11.0/mammoth.browser.min.js" integrity="sha512-Bpw1G70k1RT4pADRSajgVrcxVbAl0Ymw1UVr1EmeXxidZLp5MzAqkBx3zPK02UuvCnz4Ly7trvpJ1Zu/t2X1kQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="js/vendor/pdf.min.mjs" type="module" integrity="sha512-54wsEqEFNC3gPwTKkiB4A+/xQXSJIcPnRIjz6Gg8JZ+H+2bthEcYOFCk978ogjyXYaivHJpL/flsKCyrO2lMRg=="></script>
+<script src="js/vendor/mammoth.browser.min.js" integrity="sha512-Bpw1G70k1RT4pADRSajgVrcxVbAl0Ymw1UVr1EmeXxidZLp5MzAqkBx3zPK02UuvCnz4Ly7trvpJ1Zu/t2X1kQ=="></script>
 <script src="js/extract-text.js"></script>
 <script src="js/ner-common.js"></script>
 <script src="js/toolkit.js"></script>
