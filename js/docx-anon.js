@@ -69,10 +69,12 @@ function findEdits(text,matchers){
 function nearestP(n){while(n&&!(n.namespaceURI===DOCX_W&&n.localName==="p"))n=n.parentNode;return n;}
 function anonymizeWordXml(xml,matchers){
   const doc=new DOMParser().parseFromString(xml,"application/xml");
-  if(doc.getElementsByTagName("parsererror").length) return {xml,count:0};
+  if(doc.getElementsByTagName("parsererror").length) throw new Error("část dokumentu nejde přečíst, DOCX nevytvořím (raději nic, než únik)");
   let count=0;
+  for(const d of Array.from(doc.getElementsByTagNameNS(DOCX_W,"del"))) if(d.parentNode){d.parentNode.removeChild(d);count++;}
   for(const p of Array.from(doc.getElementsByTagNameNS(DOCX_W,"p"))){
-    const ts=Array.from(p.getElementsByTagNameNS(DOCX_W,"t")).filter(t=>nearestP(t)===p);
+    // w:t = text, w:delText = smazaný text v revizích (Word ho drží v souboru) — oboje v pořadí dokumentu
+    const ts=Array.from(p.getElementsByTagNameNS(DOCX_W,"*")).filter(t=>(t.localName==="t"||t.localName==="delText")&&nearestP(t)===p);
     if(!ts.length) continue;
     const texts=ts.map(t=>t.textContent), full=texts.join("");
     for(const ed of findEdits(full,matchers)){
@@ -88,6 +90,9 @@ function anonymizeWordXml(xml,matchers){
     }
     ts.forEach((t,k)=>{if(t.textContent!==texts[k]){t.textContent=texts[k];t.setAttributeNS("http://www.w3.org/XML/1998/namespace","xml:space","preserve");}});
   }
+  for(const it of Array.from(doc.getElementsByTagNameNS(DOCX_W,"instrText"))){
+    let t=it.textContent; for(const m of matchers){m.re.lastIndex=0;t=t.replace(m.re,()=>{count++;return m.ph;});} it.textContent=t;
+  }
   let out=new XMLSerializer().serializeToString(doc);
   out=out.replace(/(\bw:author=")[^"]*"/g,'$1Autor"').replace(/(\bw:initials=")[^"]*"/g,'$1A"');   // autoři revizí a komentářů
   if(!/^<\?xml/.test(out)) out='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+out;
@@ -95,7 +100,8 @@ function anonymizeWordXml(xml,matchers){
 }
 const DOCX_TEXT_PARTS=/^word\/(document|header\d*|footer\d*|footnotes|endnotes|comments\w*)\.xml$/;
 async function anonymizeDocx(buf,pairs){
-  const matchers=buildMatchers(pairs), entries=unzipEntries(buf), enc=new TextEncoder(), dec=new TextDecoder();
+  const xmlEsc=v=>v.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const matchers=buildMatchers(pairs), rawMatchers=buildMatchers(pairs.map(p=>({original:xmlEsc(p.original||""),placeholder:p.placeholder}))), entries=unzipEntries(buf), enc=new TextEncoder(), dec=new TextDecoder();
   let total=0;
   for(const en of entries){
     let xml=null;
@@ -103,7 +109,25 @@ async function anonymizeDocx(buf,pairs){
     else if(en.name==="docProps/core.xml") xml=dec.decode(await inflate(en)).replace(/(<(dc:creator|cp:lastModifiedBy)>)[^<]*(<\/\2>)/g,"$1$3");
     else if(en.name==="docProps/app.xml") xml=dec.decode(await inflate(en)).replace(/(<(Company|Manager)>)[^<]*(<\/\2>)/g,"$1$3");
     else if(en.name==="word/people.xml") xml=dec.decode(await inflate(en)).replace(/(\bw15:author=")[^"]*"/g,'$1Autor"');
+    // všechny ostatní XML části (odkazy v .rels, grafy, diagramy, vlastní XML…) — náhrada v surovém XML
+    else if(/\.(xml|rels)$/i.test(en.name)){const raw=dec.decode(await inflate(en));let t=raw;
+      for(const m of rawMatchers){m.re.lastIndex=0;t=t.replace(m.re,()=>{total++;return m.ph;});} if(t!==raw) xml=t;}
     if(xml!==null){const b=enc.encode(xml);Object.assign(en,{method:0,data:b,csize:b.length,usize:b.length,crc:crc32(b)});}
   }
   return {blob:zipEntries(entries),count:total};
+}
+
+// text částí, které mammoth nevrací (záhlaví, zápatí, komentáře) — přidá se do vstupu,
+// aby se v nich hledaly osobní údaje stejně jako v těle dokumentu
+async function docxExtraText(buf){
+  const dec=new TextDecoder(), parts=[];
+  for(const en of unzipEntries(buf)){
+    if(!/^word\/(header\d*|footer\d*|comments)\.xml$/.test(en.name)) continue;
+    const doc=new DOMParser().parseFromString(dec.decode(await inflate(en)),"application/xml");
+    for(const p of Array.from(doc.getElementsByTagNameNS(DOCX_W,"p"))){
+      const t=Array.from(p.getElementsByTagNameNS(DOCX_W,"t")).filter(x=>nearestP(x)===p).map(x=>x.textContent).join("").trim();
+      if(t&&!parts.includes(t)) parts.push(t);
+    }
+  }
+  return parts.join("\n");
 }

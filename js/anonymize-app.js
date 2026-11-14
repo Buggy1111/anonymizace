@@ -191,8 +191,9 @@ run();
     fst.className="fst"; fst.textContent="Načítám "+f.name+"…";
     try{
       if(f.size>20*1024*1024) throw new Error("soubor je moc velký (max 20 MB)");
-      const txt=await extractText(f,msg=>{fst.className="fst";fst.textContent=msg;});
+      let txt=await extractText(f,msg=>{fst.className="fst";fst.textContent=msg;});
       lastDocx=/\.docx$/i.test(f.name)?{name:f.name,buf:await f.arrayBuffer()}:null;
+      if(lastDocx){const extra=await docxExtraText(lastDocx.buf); if(extra) txt+="\n\n— Záhlaví, zápatí a komentáře —\n"+extra;}
       input.value=txt.slice(0,MAX_CHARS); run();
       fst.className="fst ok"; fst.textContent=f.name+" načten ("+input.value.length.toLocaleString("cs-CZ")+" znaků)";
     }catch(e){ fst.className="fst err"; fst.textContent="Soubor se nepodařilo načíst: "+e.message; }
