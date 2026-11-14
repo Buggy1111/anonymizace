@@ -38,6 +38,12 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   const npages=(ptxt.match(/\f/g)||[]).length;
   t('PDF: více stran',npages>=5,'stran '+npages); t('PDF: diakritika čitelná',['žluťoučký','úpěl','ďábelské','ľĺŕôä','„ok“'].every(w=>ptxt.includes(w)));
   t('PDF: žádný originál',!/Novák|800315/.test(ptxt));
+  // poškozené a podvržené soubory: srozumitelná chyba, žádný pád, žádné spojení ven, nic z /etc/passwd
+  for(const [f,re] of [['truncated.pdf',/nepodařilo/],['fake.pdf',/nepodařilo/],['truncated.docx',/nepodařilo/],
+                       ['bomb-body.docx',/zip bomba/],['xxe.docx',/nepodařilo/],['huge.png',/Mpx/]]){
+    const st2=await load(path.join(F,'bad',f)); const v=await p.inputValue('#input');
+    t('podvržený soubor '+f+': bezpečně odmítnut',re.test(st2)&&!/root:/.test(v),st2);
+  }
   t('lokální režim: 0 externích požadavků',ext.length===0,ext.join()); t('žádné JS chyby',errs.length===0,errs.join());
   await b.close(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail?1:0);
 })();

@@ -91,6 +91,33 @@ async function renderPdfPage(pg){
 const PAGE_TEXT_MIN=20;   // méně znaků textové vrstvy = stránka je (asi) sken → OCR
 const OCR_WEAK=40;        // jistota OCR pod touto hranicí = špatně čitelná stránka
 
+// Levné kontroly PŘED dekódováním (paměť prohlížeče): rozměry obrázku z hlavičky
+// a velikosti částí DOCX z centrálního adresáře ZIPu. Podvržený soubor tak neshodí kartu.
+const IMG_MAX_PX=40e6, DOCX_PART_LIMIT=64*1024*1024, DOCX_TOTAL_LIMIT=256*1024*1024;
+function imageDims(b){
+  const u=new Uint8Array(b), dv=new DataView(b);
+  if(u[0]===0x89&&u[1]===0x50&&u.length>=24) return [dv.getUint32(16),dv.getUint32(20)];                  // PNG IHDR
+  if(u[0]===0xFF&&u[1]===0xD8){ let i=2; while(i+9<u.length){ if(u[i]!==0xFF){i++;continue;} const m=u[i+1];
+      if(m>=0xC0&&m<=0xCF&&m!==0xC4&&m!==0xC8&&m!==0xCC) return [dv.getUint16(i+7),dv.getUint16(i+5)];       // JPEG SOFn
+      i+=2+dv.getUint16(i+2);} }
+  if(u.length>=30&&String.fromCharCode(...u.slice(0,4))==="RIFF"&&String.fromCharCode(...u.slice(8,12))==="WEBP"){
+    const k=String.fromCharCode(...u.slice(12,16));
+    if(k==="VP8X") return [1+(u[24]|u[25]<<8|u[26]<<16),1+(u[27]|u[28]<<8|u[29]<<16)];
+    if(k==="VP8 ") return [dv.getUint16(26,true)&0x3fff,dv.getUint16(28,true)&0x3fff];
+    if(k==="VP8L"){const v=dv.getUint32(21,true);return [1+(v&0x3fff),1+((v>>14)&0x3fff)];}
+  }
+  return null;
+}
+function docxSizeCheck(b){
+  const u=new Uint8Array(b), dv=new DataView(b); let e=-1;
+  for(let i=u.length-22;i>=Math.max(0,u.length-65557);i--) if(dv.getUint32(i,true)===0x06054b50){e=i;break;}
+  if(e<0) throw new Error("soubor není platný Word (DOCX) — poškozený nebo neúplný");
+  let p=dv.getUint32(e+16,true), total=0; const n=dv.getUint16(e+10,true);
+  for(let k=0;k<n&&p+46<=u.length;k++){ if(dv.getUint32(p,true)!==0x02014b50) break;
+    const us=dv.getUint32(p+24,true); total+=us;
+    if(us>DOCX_PART_LIMIT||total>DOCX_TOTAL_LIMIT) throw new Error("Word je po rozbalení podezřele velký (možná „zip bomba“) — nezpracuji ho");
+    p+=46+dv.getUint16(p+28,true)+dv.getUint16(p+30,true)+dv.getUint16(p+32,true); }
+}
 async function extractText(file,progress,info={}){
   const name=(file.name||"").toLowerCase();
   if(name.endsWith(".txt")||file.type==="text/plain") return await file.text();
@@ -127,9 +154,13 @@ async function extractText(file,progress,info={}){
   }
   if(name.endsWith(".docx")){
     if(!window.mammoth) throw new Error("mammoth se nenačetlo");
-    return (await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()})).value.trim();
+    const buf=await file.arrayBuffer(); docxSizeCheck(buf);
+    try{ return (await mammoth.extractRawText({arrayBuffer:buf})).value.trim(); }
+    catch(e){ throw new Error("Word se nepodařilo přečíst (poškozený nebo neobvyklý soubor)"); }
   }
   if(/\.(png|jpe?g|webp|bmp|gif)$/.test(name)||/^image\//.test(file.type)){
+    const dims=imageDims(await file.slice(0,262144).arrayBuffer());
+    if(dims&&dims[0]*dims[1]>IMG_MAX_PX) throw new Error(`obrázek má ${dims[0]}×${dims[1]} px, to je víc než ${IMG_MAX_PX/1e6} Mpx — zmenšete ho`);
     const r=await ocrRecognize(file,progress,"Rozpoznávám text z obrázku…");
     Object.assign(info,{pages:1,ocrPages:[1],weakPages:r.conf<OCR_WEAK?[1]:[],failedPages:r.text?[]:[1],textPages:[],skippedPages:[]});
     info.incomplete=!r.text; return r.text;
