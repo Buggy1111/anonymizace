@@ -117,6 +117,7 @@ async function anonymizeDocx(buf,pairs){
     const raw=dec.decode(await inflate(en));
     // 1) surové XML vč. hodnot atributů (odkazy), 2) jen text bez tagů — chytí i údaj rozdělený mezi runy
     const parsed=new DOMParser().parseFromString(raw,"application/xml");
+    if(parsed.getElementsByTagName("parsererror").length) throw new Error("část "+en.name+" nejde zkontrolovat, DOCX z bezpečnosti nevytvořím");
     for(const hay of [decode(raw), parsed.documentElement?parsed.documentElement.textContent:""]){
       for(const m of matchers){m.re.lastIndex=0; if(m.re.test(hay)) throw new Error("v části "+en.name+" zůstal údaj ("+m.ph+"), DOCX z bezpečnosti nevytvořím");}
     }
