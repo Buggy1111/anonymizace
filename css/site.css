@@ -89,6 +89,7 @@ textarea{width:100%;border:0;background:transparent;resize:vertical;outline:none
 .out{white-space:pre-wrap;overflow-wrap:anywhere}
 .ph-tok{font-family:var(--f-mono);font-size:.78em;font-weight:600;letter-spacing:.02em;padding:.16em .48em;border-radius:5px;background:var(--tok-bg);color:var(--tok-fg);white-space:nowrap}
 .tok.raw,.ph-tok.raw{background:transparent;color:var(--pii);font-family:var(--f-body);font-size:1em;font-weight:800;letter-spacing:-.015em;padding:0}
+.reveal{margin-top:24px}
 .copy{all:unset;cursor:pointer;font-size:12px;font-weight:500;color:var(--blue)}
 .copy:hover{text-decoration:underline}
 .copy:focus-visible{outline:2px solid var(--blue)}

@@ -82,6 +82,14 @@
     <div class="card-h"><span>Náhrady</span><span><span id="repcount">0</span> položek</span></div>
     <div class="card-b" id="table"></div>
   </div>
+  <div class="bench reveal">
+    <div class="panes">
+      <div class="pane"><div class="ph"><label for="ai-in">Odpověď z AI se značkami</label><span>vrátí údaje jen u vás</span></div>
+        <textarea id="ai-in" maxlength="40000" spellcheck="false" placeholder="Sem vložte odpověď ChatGPT, Claude nebo Gemini. Značky jako OSOBA1 nebo RC1 se nahradí původními údaji, přímo v prohlížeči."></textarea></div>
+      <div class="pane"><div class="ph"><span>Odpověď s původními údaji</span><button type="button" class="copy" id="ai-copy">Kopírovat</button></div>
+        <div class="out" id="ai-out" aria-live="polite"><span class="placeholder">Doplněná odpověď se zobrazí tady.</span></div></div>
+    </div>
+  </div>
 </section>
 
 <section class="band gut" aria-label="Kam jdou data">

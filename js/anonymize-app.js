@@ -11,9 +11,22 @@ const nerinfo=document.getElementById("nerinfo");
 function clear(el){while(el.firstChild)el.removeChild(el.firstChild);}
 function span(cls,text){const s=document.createElement("span");if(cls)s.className=cls;s.textContent=text;return s;}
 
-let lastAnon="";
+let lastAnon="", lastMap=new Map();
+// zpětné doplnění: značky v odpovědi AI → původní údaje (jen v paměti stránky, nikam se neposílá)
+const aiIn=document.getElementById("ai-in"), aiOut=document.getElementById("ai-out");
+function reveal(){
+  clear(aiOut);
+  const t=aiIn.value;
+  if(!t.trim()){aiOut.appendChild(span("placeholder","Doplněná odpověď se zobrazí tady."));return;}
+  aiOut.textContent=t.replace(PH_RE,m=>lastMap.has(m)?lastMap.get(m):m);
+}
+aiIn.addEventListener("input",reveal);
+document.getElementById("ai-copy").addEventListener("click",function(){
+  navigator.clipboard.writeText(aiOut.textContent).then(()=>{this.textContent="Zkopírováno";setTimeout(()=>this.textContent="Kopírovat",1400);},()=>{});
+});
 function render(anonymized,replacements){
   lastAnon=anonymized;
+  lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); reveal();
 
   // výstup s zvýrazněnými placeholdery — čisté DOM uzly (matchAll, žádný innerHTML)
   clear(output);
