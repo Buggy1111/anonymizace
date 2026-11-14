@@ -7,11 +7,28 @@ const input=document.getElementById("input"), output=document.getElementById("ou
 const tableEl=document.getElementById("table"), statsEl=document.getElementById("stats");
 const repcount=document.getElementById("repcount"), incount=document.getElementById("incount");
 const nerinfo=document.getElementById("nerinfo");
+const ignEl=document.getElementById("ignored"), catsEl=document.getElementById("cats"), docxBtn=document.getElementById("docx-dl");
 
 function clear(el){while(el.firstChild)el.removeChild(el.firstChild);}
 function span(cls,text){const s=document.createElement("span");if(cls)s.className=cls;s.textContent=text;return s;}
 
-let lastAnon="", lastMap=new Map();
+let lastAnon="", lastMap=new Map(), lastReps=[], lastDocx=null;
+// ── co skrývat: skupiny druhů (vypnutá skupina se vrátí do textu) + ručně vrácené falešné nálezy ──
+const CATS=[
+  ["Osoby",["OSOBA"]],["Firmy a úřady",["FIRMA","INSTITUCE"]],["Adresy",["MESTO","ULICE","CP","PSC"]],
+  ["Kontakty",["TELEFON","EMAIL","URL"]],["Identifikátory",["RC","ICO","DIC","COP","PAS","RP","ICP","DSCHRANKA","SPZ","VIN","SSN","TOKEN"]],
+  ["Peníze a účty",["UCET","IBAN","KARTA","CASTKA","KRYPTO"]],["Data",["DATUM"]],["Spisy a čísla",["SPZN","DOKID"]],["Zdraví",["MKN"]]];
+const offTypes=new Set(), ignored=new Map();   // malá písmena → původní zápis
+try{(JSON.parse(localStorage.getItem("anon-off")||"[]")).forEach(t=>offTypes.add(t));}catch(_){}
+function anon(text,ents){
+  const r=anonymize(text,ents);
+  const keep=[], back=new Map();
+  for(const x of r.replacements){
+    if(offTypes.has(x.type)||ignored.has(x.original.toLowerCase())) back.set(x.placeholder,x.original); else keep.push(x);
+  }
+  if(!back.size) return r;
+  return {anonymized:r.anonymized.replace(PH_RE,m=>back.has(m)?back.get(m):m),replacements:keep,reverted:[...back].map(([p,o])=>({placeholder:p,original:o}))};
+}
 // zpětné doplnění: značky v odpovědi AI → původní údaje (jen v paměti stránky, nikam se neposílá)
 const aiIn=document.getElementById("ai-in"), aiOut=document.getElementById("ai-out");
 function reveal(){
@@ -26,7 +43,7 @@ document.getElementById("ai-copy").addEventListener("click",function(){
 });
 function render(anonymized,replacements){
   lastAnon=anonymized;
-  lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); reveal();
+  lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); lastReps=replacements; reveal(); docxBtn.hidden=!lastDocx;
 
   // výstup s zvýrazněnými placeholdery — čisté DOM uzly (matchAll, žádný innerHTML)
   clear(output);
@@ -35,7 +52,9 @@ function render(anonymized,replacements){
     let last=0;
     for(const m of anonymized.matchAll(PH_RE)){
       if(m.index>last) output.appendChild(document.createTextNode(anonymized.slice(last,m.index)));
-      output.appendChild(span("ph-tok t-"+m[0].replace(/\d+$/,""),m[0]));
+      const tok=span("ph-tok t-"+m[0].replace(/\d+$/,""),m[0]);
+      if(lastMap.has(m[0])){tok.tabIndex=0;tok.setAttribute("role","button");tok.title="Není to osobní údaj? Kliknutím vrátíte do textu.";tok.dataset.ph=m[0];}
+      output.appendChild(tok);
       last=m.index+m[0].length;
     }
     if(last<anonymized.length) output.appendChild(document.createTextNode(anonymized.slice(last)));
@@ -74,6 +93,15 @@ function render(anonymized,replacements){
   });
   table.appendChild(tbody);tableEl.appendChild(table);
 }
+function renderIgnored(){
+  clear(ignEl); if(!ignored.size){ignEl.hidden=true;return;} ignEl.hidden=false;
+  ignEl.appendChild(span("ign-h","Vráceno do textu:"));
+  ignored.forEach((o,key)=>{const b=document.createElement("button");b.type="button";b.className="chip ign";b.textContent=o+" ✕";b.title="Znovu skrýt";
+    b.onclick=()=>{ignored.delete(key);renderIgnored();rerender();};ignEl.appendChild(b);});
+}
+function rerender(){
+  if(currentMode()==="ner"&&lastEnts){const r=anon(input.value,lastEnts);render(r.anonymized,r.replacements);} else run();
+}
 
 const EXAMPLES={
   "Právní spis":"Žalobce Jan Novák, nar. 15.3.1980, rodné číslo 800315/1234, bytem Sokolovská 12, Praha, podal dne 3.2.2026 ke Krajskému soudu návrh na zaplacení 85 000 Kč proti žalované Marii Svobodové (IČO 12345679, DIČ CZ12345679). Kontakt: jan.novak@email.cz, tel. 777 123 456. Spis sp. zn. 25 C 145/2026. Účet 1234567890/0800.",
@@ -82,7 +110,7 @@ const EXAMPLES={
   "Lékařská zpráva":"Pacientka Marie Nováková, nar. 14.6.1975, rodné číslo 755614/1234, bytem Tyršova 8, Olomouc, byla přijata 12.5.2026 na interní oddělení s diagnózou arteriální hypertenze. Ošetřující lékař MUDr. Petr Svoboda, kontakt petr.svoboda@nemocnice.cz, tel. 585 111 222. Doporučena kontrola za 14 dní."
 };
 // ── režim (lokální regex / plný NER) + debounce ──
-let nerTimer=null, nerSeq=0;
+let nerTimer=null, nerSeq=0, lastEnts=null;
 function currentMode(){const el=document.querySelector('input[name="mode"]:checked');return el?el.value:"local";}
 // auto-grow: vstupní pole roste s obsahem (jako výstup), uživatel nemusí scrolovat
 function autoGrow(){input.style.overflowY="hidden";input.style.height="auto";input.style.height=Math.max(input.scrollHeight,300)+"px";}
@@ -93,7 +121,7 @@ function run(){
   incount.textContent=text.length.toLocaleString("cs-CZ")+" / "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků";
   if(currentMode()==="local"){
     nerinfo.textContent="";
-    const r=anonymize(text); render(r.anonymized,r.replacements);
+    const r=anon(text); render(r.anonymized,r.replacements);
     return;
   }
   // NER mód — počkej na ÚFAL, debounce ať netřískáme API při psaní
@@ -101,15 +129,15 @@ function run(){
   nerinfo.textContent="Zpracovává server LINDAT…";
   clearTimeout(nerTimer);
   nerTimer=setTimeout(async function(){
-    if(!text.trim()){const r=anonymize(text);render(r.anonymized,r.replacements);nerinfo.textContent="";return;}
+    if(!text.trim()){const r=anon(text);render(r.anonymized,r.replacements);nerinfo.textContent="";return;}
     try{
       const ents=await fetchNER(text);
       if(seq!==nerSeq) return;            // zastaralý výsledek, zahoď
-      const r=anonymize(text,ents); render(r.anonymized,r.replacements);
+      lastEnts=ents; const r=anon(text,ents); render(r.anonymized,r.replacements);
       nerinfo.textContent="Přesný režim: jména a firmy rozpoznal NameTag (ÚFAL). Text byl odeslán na server LINDAT.";
     }catch(e){
       if(seq!==nerSeq) return;
-      const r=anonymize(text); render(r.anonymized,r.replacements);
+      const r=anon(text); render(r.anonymized,r.replacements);
       nerinfo.textContent="Server LINDAT teď neodpovídá ("+e.message+"). Použil se lokální režim.";
     }
   },550);
@@ -128,6 +156,29 @@ document.getElementById("copy").onclick=function(){
 };
 input.addEventListener("input",run);
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",run));
+// klik/Enter na značku ve výstupu = falešný nález → vrátit
+function unredact(e){const t=e.target.closest&&e.target.closest(".ph-tok[data-ph]");if(!t)return;
+  if(e.type==="keydown"&&e.key!=="Enter"&&e.key!==" ")return; e.preventDefault();
+  const o=lastMap.get(t.dataset.ph); if(o){ignored.set(o.toLowerCase(),o);renderIgnored();rerender();}}
+output.addEventListener("click",unredact); output.addEventListener("keydown",unredact);
+// přepínače skupin
+catsEl.appendChild(span("cats-h","Skrývat:"));
+CATS.forEach(([name,types])=>{const b=document.createElement("button");b.type="button";b.className="chip";b.textContent=name;
+  b.setAttribute("aria-pressed",String(!types.every(t=>offTypes.has(t))));
+  b.onclick=()=>{const on=b.getAttribute("aria-pressed")==="true";types.forEach(t=>on?offTypes.add(t):offTypes.delete(t));b.setAttribute("aria-pressed",String(!on));
+    try{localStorage.setItem("anon-off",JSON.stringify([...offTypes]));}catch(_){} rerender();};
+  catsEl.appendChild(b);});
+input.addEventListener("input",()=>{if(lastDocx&&!lastDocx.edited){lastDocx.edited=true;docxBtn.title="Text jste upravili; DOCX se anonymizuje podle aktuální tabulky náhrad.";}});
+docxBtn.onclick=async function(){
+  if(!lastDocx)return; const b=this; b.disabled=true; const fst=document.getElementById("anon-fst");
+  try{
+    const {blob,count}=await anonymizeDocx(lastDocx.buf,lastReps);
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=lastDocx.name.replace(/\.docx$/i,"")+"-anonymizovano.docx";
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    fst.className="fst ok";fst.textContent="Staženo: "+count+" náhrad ve Wordu, formátování zachováno, autor odstraněn z vlastností.";
+  }catch(e){fst.className="fst err";fst.textContent="DOCX se nepodařilo vytvořit: "+e.message;}
+  b.disabled=false;
+};
 input.value=EXAMPLES["Právní spis"];
 run();
 
@@ -141,6 +192,7 @@ run();
     try{
       if(f.size>20*1024*1024) throw new Error("soubor je moc velký (max 20 MB)");
       const txt=await extractText(f,msg=>{fst.className="fst";fst.textContent=msg;});
+      lastDocx=/\.docx$/i.test(f.name)?{name:f.name,buf:await f.arrayBuffer()}:null;
       input.value=txt.slice(0,MAX_CHARS); run();
       fst.className="fst ok"; fst.textContent=f.name+" načten ("+input.value.length.toLocaleString("cs-CZ")+" znaků)";
     }catch(e){ fst.className="fst err"; fst.textContent="Soubor se nepodařilo načíst: "+e.message; }

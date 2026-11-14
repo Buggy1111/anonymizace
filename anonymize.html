@@ -69,11 +69,13 @@
     </div>
   </div>
   <p class="nerinfo" id="nerinfo" aria-live="polite"></p>
+  <div class="cats" id="cats" role="group" aria-label="Které údaje skrývat"></div>
+  <div class="cats ignored" id="ignored" hidden></div>
   <div class="bench">
     <div class="panes">
       <div class="pane"><div class="ph"><label for="input">Váš text</label><span id="incount">0 znaků</span></div>
         <textarea id="input" maxlength="20000" spellcheck="false" placeholder="Vložte český text se jmény, rodnými čísly, IČO, telefony…"></textarea></div>
-      <div class="pane"><div class="ph"><span>Anonymizováno</span><button type="button" class="copy" id="copy">Kopírovat</button></div>
+      <div class="pane"><div class="ph"><span>Anonymizováno</span><span class="acts"><button type="button" class="copy" id="docx-dl" hidden>Stáhnout DOCX</button><button type="button" class="copy" id="copy">Kopírovat</button></span></div>
         <div class="out" id="output" aria-live="polite"></div></div>
     </div>
   </div>
@@ -133,6 +135,7 @@
 <script src="js/extract-text.js"></script>
 <script src="js/ner-common.js"></script>
 <script src="js/anonymize-engine.js"></script>
+<script src="js/docx-anon.js"></script>
 <script src="js/anonymize-app.js"></script>
 <script src="js/site.js"></script>
 
