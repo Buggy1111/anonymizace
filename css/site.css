@@ -113,21 +113,27 @@ textarea{width:100%;border:0;background:transparent;resize:vertical;outline:none
 
 /* ── otázky bez poskakování: otázky vlevo, odpověď v kartě pevné výšky (výška = nejdelší odpověď) ── */
 .faq-ui{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:28px;align-items:start}
-.faq-q{display:grid;gap:2px}
-.faq-q button{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;border-radius:14px;
-  font-family:var(--f-display);font-weight:500;font-size:18px;letter-spacing:-.02em;color:var(--fg2);transition:background .25s,color .25s}
-.faq-q button::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid currentColor;border-top:2px solid currentColor;transform:rotate(45deg);opacity:0;transition:opacity .25s,transform .35s var(--ease)}
-.faq-q button:hover{color:var(--fg);background:var(--bg2)}
-.faq-q button[aria-selected="true"]{color:var(--fg);background:var(--bg2)}
-.faq-q button[aria-selected="true"]::after{opacity:1}
+.faq-q{position:relative;display:grid;gap:2px}
+.faq-pill{position:absolute;left:0;right:0;top:0;border-radius:14px;background:var(--bg2);pointer-events:none;transition:transform .5s var(--ease),height .5s var(--ease)}
+.faq-q button{all:unset;position:relative;z-index:1;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:16px 18px;border-radius:14px;
+  font-family:var(--f-display);font-weight:500;font-size:18px;letter-spacing:-.02em;color:var(--fg2);transition:color .3s;overflow:hidden}
+.faq-q button::after{content:"";flex:none;width:8px;height:8px;border-right:2px solid currentColor;border-top:2px solid currentColor;transform:translateX(-6px) rotate(45deg);opacity:0;transition:opacity .3s,transform .45s var(--ease)}
+.faq-q button:hover{color:var(--fg)}
+.faq-q button[aria-selected="true"]{color:var(--fg)}
+.faq-q button[aria-selected="true"]::after{opacity:1;transform:rotate(45deg)}
 .faq-q button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-.faq-a{display:grid;background:var(--bg2);border-radius:28px;padding:34px 36px}
-.faq-a>div{grid-area:1/1;opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .35s var(--ease),transform .45s var(--ease),visibility 0s .35s}
-.faq-a>div.on{opacity:1;visibility:visible;transform:none;transition:opacity .35s var(--ease) .05s,transform .45s var(--ease) .05s,visibility 0s}
+.faq-q button i{position:absolute;left:18px;right:18px;bottom:8px;height:2px;border-radius:2px;background:var(--line2);transform:scaleX(0);transform-origin:left;opacity:0}
+.faq-q button[aria-selected="true"] i{opacity:1}
+.faq.auto .faq-q button[aria-selected="true"] i{background:var(--fg);animation:faqbar 6s linear forwards}
+@keyframes faqbar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.faq-a{position:relative;background:var(--bg2);border-radius:28px;padding:34px 36px;overflow:hidden;min-height:200px}
+.faq-a>div{position:absolute;left:36px;right:36px;top:34px;opacity:0;visibility:hidden;filter:blur(6px);transform:translateY(calc(var(--dir,1) * 18px));transition:opacity .3s var(--ease),transform .5s var(--ease),filter .3s var(--ease),visibility 0s .3s}
+.faq-a>div.out{transform:translateY(calc(var(--dir,1) * -18px))}
+.faq-a>div.on{opacity:1;visibility:visible;filter:none;transform:none;transition:opacity .45s var(--ease) .08s,transform .6s var(--ease) .08s,filter .45s var(--ease) .08s,visibility 0s}
 .faq-a h3{margin:0 0 12px;font-family:var(--f-display);font-weight:700;font-size:24px;letter-spacing:-.03em}
 .faq-a p{margin:0;color:var(--fg2);font-size:17px;line-height:1.6}
 .faq.enhanced details{display:none}
-@media (max-width:760px){.faq-ui{grid-template-columns:1fr;gap:16px}.faq-q button{font-size:16px;padding:13px 14px}.faq-a{padding:26px 24px}.faq-a h3{font-size:20px}}
+@media (max-width:760px){.faq-ui{grid-template-columns:1fr;gap:16px}.faq-q button{font-size:16px;padding:13px 14px}.faq-a{padding:26px 24px}.faq-a>div{left:24px;right:24px;top:26px}.faq-a h3{font-size:20px}}
 
 /* ── patička ── */
 .site-footer{background:var(--bg2);font-size:12px;color:var(--mut);letter-spacing:-.01em}
@@ -137,6 +143,7 @@ textarea{width:100%;border:0;background:transparent;resize:vertical;outline:none
 .f-cols h2{margin:0 0 8px;font-size:12px;font-weight:600;color:var(--fg)}
 .f-cols a,.f-cols span{display:block;text-decoration:none;color:var(--fg2);padding:3px 0}
 .f-cols a:hover{text-decoration:underline}
+.f-cols a[href^="mailto:"]{color:var(--err);font-weight:500}
 .f-cols code{font-family:var(--f-mono);font-size:11.5px}
 .f-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding-top:16px;border-top:1px solid var(--line)}
 

@@ -42,13 +42,41 @@
       const h=document.createElement("h3"); h.textContent=q; const p=document.createElement("p"); p.textContent=a; pane.append(h,p);
       btns.push(b); panes.push(pane); list.appendChild(b); card.appendChild(pane);
     });
-    const show=i=>{ btns.forEach((b,j)=>{ b.setAttribute("aria-selected",String(i===j)); b.tabIndex=i===j?0:-1; }); panes.forEach((p,j)=>p.classList.toggle("on",i===j)); };
+    const pill=document.createElement("span"); pill.className="faq-pill"; pill.setAttribute("aria-hidden","true"); list.prepend(pill);
+    btns.forEach(b=>{ const i=document.createElement("i"); i.setAttribute("aria-hidden","true"); b.appendChild(i); });
+    let cur=-1;
+    const place=()=>{ const b=btns[cur]; if(!b) return; pill.style.transform=`translateY(${b.offsetTop}px)`; pill.style.height=b.offsetHeight+"px"; };
+    const show=i=>{
+      if(i===cur) return; const dir=i>cur?1:-1;
+      card.style.setProperty("--dir",dir);
+      panes.forEach((p,j)=>{ p.classList.toggle("out",j===cur); p.classList.toggle("on",i===j); });
+      btns.forEach((b,j)=>{ b.setAttribute("aria-selected",String(i===j)); b.tabIndex=i===j?0:-1; });
+      cur=i; place();
+      // restart the countdown bar on the newly selected question
+      const bar=btns[i].querySelector("i"); bar.style.animation="none"; void bar.offsetWidth; bar.style.animation="";
+    };
+    // samostatné střídání otázek, dokud je sekce vidět a nikdo na ni nesáhl
+    let timer=0, touched=false, inView=false;
+    const stop=()=>{ touched=true; faq.classList.remove("auto"); clearInterval(timer); };
+    const tick=()=>{ if(!touched&&inView&&!document.hidden) show((cur+1)%btns.length); };
     btns.forEach((b,i)=>{
-      b.addEventListener("click",()=>show(i));
+      b.addEventListener("click",()=>{ stop(); show(i); });
       b.addEventListener("keydown",e=>{ const k={ArrowDown:1,ArrowRight:1,ArrowUp:-1,ArrowLeft:-1}[e.key]; if(!k) return;
-        e.preventDefault(); const n=(i+k+btns.length)%btns.length; show(n); btns[n].focus(); });
+        e.preventDefault(); stop(); const n=(i+k+btns.length)%btns.length; show(n); btns[n].focus(); });
     });
-    show(0); ui.append(list,card); items[0].before(ui); faq.classList.add("enhanced");
+    card.addEventListener("pointerenter",()=>{ if(!touched){ clearInterval(timer); faq.classList.remove("auto"); } });
+    card.addEventListener("pointerleave",()=>{ if(!touched&&inView){ faq.classList.add("auto"); const b=btns[cur].querySelector("i"); b.style.animation="none"; void b.offsetWidth; b.style.animation=""; clearInterval(timer); timer=setInterval(tick,6000); } });
+    ui.append(list,card); items[0].before(ui); faq.classList.add("enhanced"); show(0);
+    // výška karty = nejdelší odpověď (+ odsazení); drží se pevně, ať přepnutí nic neposune
+    const fit=()=>{ const cs=getComputedStyle(card), pad=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
+      card.style.height=(Math.max(...panes.map(p=>p.scrollHeight))+pad)+"px"; place(); };
+    fit(); addEventListener("resize",fit); if(document.fonts) document.fonts.ready.then(fit);
+    if(!reduce && "IntersectionObserver" in window){
+      new IntersectionObserver(es=>es.forEach(en=>{ inView=en.isIntersecting;
+        if(inView&&!touched){ faq.classList.add("auto"); const b=btns[cur].querySelector("i"); b.style.animation="none"; void b.offsetWidth; b.style.animation=""; clearInterval(timer); timer=setInterval(tick,6000); }
+        else { clearInterval(timer); faq.classList.remove("auto"); }
+      }),{threshold:.5}).observe(ui);
+    }
   });
 
   // ── odhalení při scrollu: obsah je vidět i bez JS, animace jen přidává pohyb ──
