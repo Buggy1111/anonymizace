@@ -14,7 +14,7 @@ function wireUploads(){
       if(st){st.className="status";st.textContent="Načítám "+f.name+"…";}
       try{
         if(f.size>10*1024*1024) throw new Error("soubor je moc velký (max 10 MB)");
-        const txt=await extractText(f);
+        const txt=await extractText(f,msg=>{if(st){st.className="status";st.textContent=msg;}});
         ta.value=txt.slice(0,20000);
         ta.dispatchEvent(new Event("input"));
         if(st){st.className="status ok";st.textContent=f.name+" načten ("+ta.value.length.toLocaleString("cs-CZ")+" znaků)";}

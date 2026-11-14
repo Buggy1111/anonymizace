@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-7+rA+rSMD80xcPwWbnoCNmVybzgrks2I266nUrvawAU='; connect-src 'self' https://lindat.mff.cuni.cz; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-7+rA+rSMD80xcPwWbnoCNmVybzgrks2I266nUrvawAU='; connect-src 'self' https://lindat.mff.cuni.cz; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Nástroje pro češtinu online — rozpoznání entit, morfologie, pravopis a překlad</title>
 <meta name="description" content="České jazykové nástroje přímo v prohlížeči: rozpoznání entit (NER), morfologická analýza, oprava pravopisu a diakritiky a strojový překlad. Zdarma, postaveno na nástrojích ÚFAL MFF UK.">
@@ -61,7 +61,7 @@
   </div>
   <div class="panel active" data-p="ner" role="tabpanel" aria-label="Rozpoznání entit">
     <p class="desc"><b>Rozpoznání entit.</b> Najde v textu osoby, firmy, místa, instituce a data a roztřídí je. Hodí se na vytěžení údajů z dokumentů a přípravu textu k analýze.<span class="eng">NameTag 3 od ÚFAL · 35 jazyků</span></p>
-    <div class="controls"><button type="button" class="btn sm" id="ner-go">Rozpoznat entity</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx" data-target="ner-in" data-status="ner-st" class="sr"></label><span class="status" id="ner-st" aria-live="polite"></span></div>
+    <div class="controls"><button type="button" class="btn sm" id="ner-go">Rozpoznat entity</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" data-target="ner-in" data-status="ner-st" class="sr"></label><span class="status" id="ner-st" aria-live="polite"></span></div>
     <div class="bench"><div class="panes">
       <div class="pane"><div class="ph"><label for="ner-in">Vstupní text</label><span class="cc" id="ner-cc"></span></div><textarea id="ner-in" data-cc="ner-cc" spellcheck="false">Pavel Novák z firmy Seznam.cz se sešel s Marií Svobodovou v Brně 3. února 2026.</textarea></div>
       <div class="pane"><div class="ph"><span>Výsledek</span></div><div class="out" id="ner-out" aria-live="polite"></div></div>
@@ -69,7 +69,7 @@
   </div>
   <div class="panel" data-p="morf" role="tabpanel" aria-label="Morfologie">
     <p class="desc"><b>Morfologie.</b> U každého slova určí základní tvar, slovní druh a mluvnické kategorie: pád, rod, číslo, čas. Pro jazykovou analýzu, chytré vyhledávání i výuku.<span class="eng">UDPipe 2 od ÚFAL</span></p>
-    <div class="controls"><button type="button" class="btn sm" id="morf-go">Analyzovat</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx" data-target="morf-in" data-status="morf-st" class="sr"></label><span class="status" id="morf-st" aria-live="polite"></span></div>
+    <div class="controls"><button type="button" class="btn sm" id="morf-go">Analyzovat</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" data-target="morf-in" data-status="morf-st" class="sr"></label><span class="status" id="morf-st" aria-live="polite"></span></div>
     <div class="bench"><div class="panes">
       <div class="pane"><div class="ph"><label for="morf-in">Vstupní text</label><span class="cc" id="morf-cc"></span></div><textarea id="morf-in" data-cc="morf-cc" spellcheck="false">Pavel viděl tři velké psy a rychle utíkal domů.</textarea></div>
       <div class="pane"><div class="ph"><span>Výsledek</span></div><div class="out mono" id="morf-out" aria-live="polite"></div></div>
@@ -77,7 +77,7 @@
   </div>
   <div class="panel" data-p="korek" role="tabpanel" aria-label="Pravopis a diakritika">
     <p class="desc"><b>Pravopis a diakritika.</b> Opraví překlepy a doplní háčky a čárky. Opravená slova jsou ve výsledku <span class="ins">podtržená</span>.<span class="eng">Korektor od ÚFAL</span></p>
-    <div class="controls"><button type="button" class="btn sm" id="korek-go">Opravit</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx" data-target="korek-in" data-status="korek-st" class="sr"></label><span class="status" id="korek-st" aria-live="polite"></span></div>
+    <div class="controls"><button type="button" class="btn sm" id="korek-go">Opravit</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" data-target="korek-in" data-status="korek-st" class="sr"></label><span class="status" id="korek-st" aria-live="polite"></span></div>
     <div class="bench"><div class="panes">
       <div class="pane"><div class="ph"><label for="korek-in">Vstupní text</label><span class="cc" id="korek-cc"></span></div><textarea id="korek-in" data-cc="korek-cc" spellcheck="false">Muj kolega napsal zpravu bez diakritiky a s nekolika preklepy.</textarea></div>
       <div class="pane"><div class="ph"><span>Výsledek</span></div><div class="out" id="korek-out" aria-live="polite"></div></div>
@@ -85,7 +85,7 @@
   </div>
   <div class="panel" data-p="prek" role="tabpanel" aria-label="Překlad">
     <p class="desc"><b>Překlad.</b> Mezi češtinou, angličtinou, němčinou, francouzštinou, polštinou, ruštinou a ukrajinštinou. Pro češtinu a angličtinu na úrovni profesionálního překladu.<span class="eng">CUBBITT (Charles Translator) od ÚFAL</span></p>
-    <div class="controls"><select id="prek-src" aria-label="Zdrojový jazyk"></select><span aria-hidden="true">→</span><select id="prek-tgt" aria-label="Cílový jazyk"></select><button type="button" class="btn sm" id="prek-go">Přeložit</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx" data-target="prek-in" data-status="prek-st" class="sr"></label><span class="status" id="prek-st" aria-live="polite"></span></div>
+    <div class="controls"><select id="prek-src" aria-label="Zdrojový jazyk"></select><span aria-hidden="true">→</span><select id="prek-tgt" aria-label="Cílový jazyk"></select><button type="button" class="btn sm" id="prek-go">Přeložit</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" data-target="prek-in" data-status="prek-st" class="sr"></label><span class="status" id="prek-st" aria-live="polite"></span></div>
     <div class="bench"><div class="panes">
       <div class="pane"><div class="ph"><label for="prek-in">Vstupní text</label><span class="cc" id="prek-cc"></span></div><textarea id="prek-in" data-cc="prek-cc" spellcheck="false">Dobrý den, rád bych si objednal dva lístky na zítřejší představení.</textarea></div>
       <div class="pane"><div class="ph"><span>Výsledek</span></div><div class="out" id="prek-out" aria-live="polite"></div></div>

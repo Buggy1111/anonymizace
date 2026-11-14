@@ -126,8 +126,8 @@ run();
     const f=fi.files&&fi.files[0]; if(!f) return;
     fst.className="fst"; fst.textContent="Načítám "+f.name+"…";
     try{
-      if(f.size>10*1024*1024) throw new Error("soubor je moc velký (max 10 MB)");
-      const txt=await extractText(f);
+      if(f.size>20*1024*1024) throw new Error("soubor je moc velký (max 20 MB)");
+      const txt=await extractText(f,msg=>{fst.className="fst";fst.textContent=msg;});
       input.value=txt.slice(0,MAX_CHARS); run();
       fst.className="fst ok"; fst.textContent=f.name+" načten ("+input.value.length.toLocaleString("cs-CZ")+" znaků)";
     }catch(e){ fst.className="fst err"; fst.textContent="Soubor se nepodařilo načíst: "+e.message; }

@@ -35,7 +35,7 @@ css/tool.css        — anonymizér a nástroje
 js/theme.js         — den/noc před vykreslením (bez probliknutí)
 js/site.js          — přepínač vzhledu, plynulý scroll (vendor/lenis), odhalení při scrollu
 js/landing.js       — skartovačka, dveře, nečinnost, živá ukázka
-js/extract-text.js  — čtení PDF/DOCX/TXT (pdf.js + mammoth z cdnjs)
+js/extract-text.js  — čtení PDF/DOCX/TXT/obrázků (pdf.js, mammoth, Tesseract.js OCR — vše self-hosted v js/vendor/)
 js/toolkit.js       — logika nástrojů
 js/anonymize-engine.js — anonymizační logika (sdílí úvod i anonymizér)
 js/anonymize-app.js — DOM vrstva anonymizéru

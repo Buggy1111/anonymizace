@@ -11,7 +11,7 @@ const FIRST_NAMES = new Set(["jan","jana","petr","petra","josef","marie","martin
   "alena","ivana","monika","zuzana","helena","andrea","martina","dana","simona","nikola","kristýna","kristyna",
   "edita","editka","silvie","jaroslav","vladimír","vladimir","oldřich","oldrich",
   // rozšířeno 14. 11. 2026 (test na reálných soudních dokumentech: chyběla i Alexandra, Richard…)
-  "adriana","adéla","alexandr","alexandra","aleš","alois","alžběta","aneta","anežka","anton","arnošt","bedřich","benedikt","blanka","bohdan","bohumil","bohumila","bohuslav","bořek","božena","břetislav","ctibor","dalibor","daniela","denis","denisa","dita","dobroslav","dominik","dominika","drahomíra","drahoslav","dušan","eduard","eliška","ema","emil","emilie","emma","erik","evžen","františka","gabriela","gustav","hana","hedvika","hubert","hynek","igor","ilona","ingrid","irena","ivan","iveta","ivo","jarmil","jarmila","jaromír","jaroslava","jeroným","jindřich","jindřiška","jitka","jiřina","jonáš","jozef","julie","juraj","kamil","kamila","karolína","klára","kristina","kristián","kryštof","kvido","kvítek","lada","ladislava","leoš","libor","libuše","lubomír","luboš","lucia","ludmila","ludvík","lumír","lýdia","magdaléna","marcel","marcela","marián","marta","matouš","matyáš","matúš","metoděj","michaela","mikuláš","milada","milena","miloslava","miloš","miriam","miroslava","naděžda","natálie","nela","nikol","norbert","olga","oskar","ota","otakar","patricie","patrik","pavlína","peter","petronela","prokop","přemysl","radim","radka","radmila","radovan","rastislav","regina","renata","richard","robert","romana","rostislav","rudolf","róbert","růžena","sabina","samuel","sebastián","silvia","simona","sofie","soňa","stanislava","stela","svatopluk","světlana","sára","tadeáš","taťána","teodor","terezie","timotej","valentýn","vanda","vendula","viera","viktor","viktorie","vilém","vladimíra","vlasta","vlastimil","vít","vítězslav","věra","věroslav","zbyněk","zdeňka","zikmund","zlata","zora","zuzana","čestmír","ľubomír","šimon","štefan","štěpán","šárka","žaneta"]);
+  "adriana","adéla","alexandr","alexandra","aleš","alois","alžběta","aneta","anežka","anton","ján","florián","ľudovít","ľuboš","ľubica","ľudmila","mária","zuzka","katarína","kristína","alžbeta","dušana","jana","jarmila","marek","miroslav","pavol","radoslav","stanislav","tibor","vladimír","zoltán","ladislav","gejza","imrich","ondrej","rudolf","milan","marián","arnošt","bedřich","benedikt","blanka","bohdan","bohumil","bohumila","bohuslav","bořek","božena","břetislav","ctibor","dalibor","daniela","denis","denisa","dita","dobroslav","dominik","dominika","drahomíra","drahoslav","dušan","eduard","eliška","ema","emil","emilie","emma","erik","evžen","františka","gabriela","gustav","hana","hedvika","hubert","hynek","igor","ilona","ingrid","irena","ivan","iveta","ivo","jarmil","jarmila","jaromír","jaroslava","jeroným","jindřich","jindřiška","jitka","jiřina","jonáš","jozef","julie","juraj","kamil","kamila","karolína","klára","kristina","kristián","kryštof","kvido","kvítek","lada","ladislava","leoš","libor","libuše","lubomír","luboš","lucia","ludmila","ludvík","lumír","lýdia","magdaléna","marcel","marcela","marián","marta","matouš","matyáš","matúš","metoděj","michaela","mikuláš","milada","milena","miloslava","miloš","miriam","miroslava","naděžda","natálie","nela","nikol","norbert","olga","oskar","ota","otakar","patricie","patrik","pavlína","peter","petronela","prokop","přemysl","radim","radka","radmila","radovan","rastislav","regina","renata","richard","robert","romana","rostislav","rudolf","róbert","růžena","sabina","samuel","sebastián","silvia","simona","sofie","soňa","stanislava","stela","svatopluk","světlana","sára","tadeáš","taťána","teodor","terezie","timotej","valentýn","vanda","vendula","viera","viktor","viktorie","vilém","vladimíra","vlasta","vlastimil","vít","vítězslav","věra","věroslav","zbyněk","zdeňka","zikmund","zlata","zora","zuzana","čestmír","ľubomír","šimon","štefan","štěpán","šárka","žaneta"]);
 
 // ⚠️ vědomý kompromis (review #10): "Most"/"Opava"/"Odry" kolidují s apelativy —
 // u slovníku bez kontextu nerozlišitelné; chybujeme směrem k redakci (FP ≠ leak),
@@ -59,7 +59,7 @@ function validDayMonth(s){                     // 1.1.99 — den 1–31, měsíc
 }
 // pořadí = priorita: specifické PŘED obecným, ať si nepřeberou číslice.
 // Položky s `cap:1` redigují jen zachycenou skupinu — kontext (trigger) zůstává čitelný.
-const MESIC="(?:led(?:na|en)|únor[ay]?|březn[a]?|březen|dub(?:na|en)|květ(?:na|en)|červ(?:na|en|enec|ence)|srp(?:na|en)|září|říj(?:na|en)|listopad[ua]?|prosin(?:ce|ec))";
+const MESIC="(?:led(?:na|en)|únor[ay]?|březn[a]?|březen|dub(?:na|en)|květ(?:na|en)|červ(?:na|en|enec|ence)|srp(?:na|en)|září|říj(?:na|en)|listopad[ua]?|prosin(?:ce|ec)|január[a]?|február[a]?|marc[a]?|apríl[a]?|máj[a]?|jún[a]?|júl[a]?|august[a]?|septemb(?:er|ra)|októb(?:er|ra)|novemb(?:er|ra)|decemb(?:er|ra))";
 const STRUCT = [
   {key:"URL",     label:"URL",            re:/\bhttps?:\/\/[^\s<>"]+/gi},
   // (?<![\w.+-]) + {1,64}: e-mail začíná jen na začátku „slova" → žádné kvadratické zpětné hledání
@@ -74,10 +74,10 @@ const STRUCT = [
   // jen async SubtleCrypto — validátory jsou sync. Náhodný 26+znakový token jako FP ≠ leak.
   {key:"KRYPTO",  label:"krypto adresa",  re:/\b(?:0x[a-fA-F0-9]{40}|bc1[a-z0-9]{25,59}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})\b/g},
   // ulice: a) koncovka+číslo  b) kontext (bytem/sídlem)+víceslovný název+číslo
-  {key:"ULICE",   label:"ulice",          re:/\p{Lu}[\p{Ll}]+(?:ská|cká|ova|ého|ního|í)\s+\d{1,4}(?:\/\d{1,4})?/gu},
+  {key:"ULICE",   label:"ulice",          re:/\p{Lu}[\p{Ll}]+(?:ská|cká|ova|ová|ovo|ého|ního|í)(?:\s+(?:nám\.|náměstí|námestie|nábrežie|ulica))?[ \t]+\d{1,4}(?:\/\d{1,4})?/gu},
   {key:"ULICE",   label:"ulice",  cap:1,  re:/(?:bytem|se\s+sídlem|sídlem|trvale\s+bytem|adres\p{L}+|bydliště|ulice|ul\.)[:\s]+((?:nám(?:ěstí|\.)\s+|třída\s+|tř\.\s+|nábřeží\s+)?\p{Lu}[\p{L}]*(?:\s+(?:nám\.|náměstí|[\p{Lu}\p{Ll}.]+)){0,2}\s+\d{1,4}(?:\/\d{1,4})?[a-z]?)(?![\d])/gu},
   // náměstí / třída / nábřeží kdekoli („náměstí Míru 5", „třída Kpt. Jaroše 12")
-  {key:"ULICE",   label:"ulice",          re:/(?:[Nn]ám(?:ěstí|\.)|[Tt]řída|[Tt]ř\.|[Nn]ábřeží)\s+\p{Lu}[\p{L}.]*(?:\s+\p{Lu}[\p{L}.]*){0,2}\s+\d{1,4}(?:\/\d{1,4})?[a-z]?(?![\d])/gu},
+  {key:"ULICE",   label:"ulice",          re:/(?:[Nn]ám(?:ěstí|estie|\.)|[Tt]řída|[Tt]ř\.|[Nn]ábřeží|[Nn]ábrežie|[Uu]lica)\s+\p{Lu}[\p{L}.]*(?:\s+\p{Lu}[\p{L}.]*){0,2}\s+\d{1,4}(?:\/\d{1,4})?[a-z]?(?![\d])/gu},
   // DIČ PŘED IBAN (oba CZ+číslice; \b…\b zabrání kolizi na délce)
   {key:"DIC",     label:"DIČ",            re:/\b(?:CZ|SK|DE|AT|PL)\d{8,11}\b/g},
   {key:"IBAN",    label:"IBAN",           re:/\b[A-Za-z]{2}\d{2}(?:\s?[A-Za-z0-9]{4}){2,7}\b/g, valid:validIBAN},
@@ -94,7 +94,7 @@ const STRUCT = [
   // kontextová oborová čísla (smlouva/pojistka/škodní/jednací/VS/SS/osobní č./ID/ev.č.)
   // (?<![A-Z\d]) před číslicí: capture nesmí ukrást číslici z dřívějšího placeholderu
   // („sp. zn. SPZN1“ → bral „1“ → SPZNDOKID1) — placeholdery jsou VELKÁ písmena+číslo
-  {key:"DOKID",   label:"číslo dokumentu",cap:1, re:/(?:(?<![\p{L}])(?:VS|KS|SS)(?=[:\s])|(?<![\p{L}])[VvKkSs]\.\s?[Ss]\.(?=[:\s])|(?:[Ss]mlouv\p{L}*|[Ff]aktur\p{L}*|[Oo]bjednávk\p{L}*|[Pp]ojistk\p{L}*|[Pp]ojistn\p{L}*\s+smlouv\p{L}*)\s+(?:č\.|čísl\p{L}*)|[Vv]ariabiln\p{L}*\s+symbol|[Ss]pecifick\p{L}*\s+symbol|[Čč]ísl\p{L}*\s+(?:smlouvy|pojistky|pojistné\s+smlouvy|škodní\s+události|jednací|zákaznick\p{L}*|profilu|žáka)|[Čč]\.\s*j\.|[Ss]p\.\s*zn\.|[Ss]pisov\p{L}*\s+značk\p{L}*|[Oo]sobní\s+čísl\p{L}*|ID\s+žáka|[Ee]viden\p{L}*\s+čísl\p{L}*|[Ee]v\.\s*č\.)[^\d\n]{0,25}?((?:[A-Z]{1,5}[ \/-])?(?<![A-Z\d])\d[\dA-Za-z]*(?:[\/-][\dA-Za-z]+){0,3})/gu},
+  {key:"DOKID",   label:"číslo dokumentu",cap:1, re:/(?:(?<![\p{L}])(?:VS|KS|SS)(?=[:\s])|(?<![\p{L}])[VvKkSs]\.\s?[Ss]\.(?=[:\s])|(?:[Ss]mlouv\p{L}*|[Ff]aktur\p{L}*|[Oo]bjednávk\p{L}*|[Pp]ojistk\p{L}*|[Pp]ojistn\p{L}*\s+smlouv\p{L}*)\s+(?:č\.|čísl\p{L}*)|[Vv]ariabiln\p{L}*\s+symbol|[Ss]pecifick\p{L}*\s+symbol|[Čč]ísl\p{L}*\s+(?:smlouvy|pojistky|pojistné\s+smlouvy|škodní\s+události|jednací|zákaznick\p{L}*|profilu|žáka)|[Čč]\.\s*j\.|[Ss]p\.\s*zn\.|[Ss]pisov\p{L}*\s+značk\p{L}*|[Oo]sobní\s+čísl\p{L}*|ID\s+žáka|[Ee]viden\p{L}*\s+čísl\p{L}*|[Ee]v\.\s*č\.|[Vv]ložk\p{L}*\s+č\.|(?:SAK|ČAK)\s+č\.|(?<![\p{L}])[Čč]íslo:|[Nn]aše\s+čísl\p{L}*|[Čč]\.\s*k\.)[^\d\n]{0,25}?((?:[A-Z]{1,5}[ \/-])?(?<![A-Z\d])\d[\dA-Za-z]*(?:[\/-]{1,2}[\dA-Za-z]+){0,3})/gu},
   {key:"PAS",     label:"číslo pasu",     cap:1, re:/(?:číslo\s+pasu|cestovní\p{L}*\s+pas\p{L}*|pas\s+č\.)[^\d\n]{0,15}?([A-Z]{0,2}\d{7,9})(?!\d)/giu},
   {key:"RP",      label:"řidičský průkaz",cap:1, re:/(?:řidičsk\p{L}*\s+průkaz\p{L}*|řidičák\p{L}*|ŘP)[^\dA-Z\n]{0,15}?([A-Z]{2}\s?\d{6})(?!\d)/gu},
   {key:"ICP",     label:"IČP/IČZ",        cap:1, re:/(?<![\p{L}])(?:IČP|IČZ)[:\s]{1,3}(\d{8})(?!\d)/gu},
@@ -115,6 +115,7 @@ const STRUCT = [
   //          b) bez předvolby — jen reálné CZ prefixy 2–7 (pevné linky+mobily; částky
   //             „123 456 789“ začínají 1 → propadnou) + stopka na měnu/jednotky/delší čísla
   {key:"TELEFON", label:"telefon",        re:/(?:\+|00\s?)42[01](?:[\s.-]?\d){9}\b/g},
+  {key:"TELEFON", label:"telefon",        re:/(?<![\d\/])\b0[2-9]\d{2}[ \/]?\d{3} ?\d{3}\b(?![\s.-]?\d)/g},  // SK: 0901 234 567
   {key:"TELEFON", label:"telefon",        re:/(?<![\d\/])\b[2-7]\d{2} \d{2} \d{2} \d{2}\b(?![\s.-]?\d)(?!\s?(?:Kč|CZK|EUR|%))/g},
   {key:"TELEFON", label:"telefon",        re:/(?<!\d[\s.-])\b[2-7]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}\b(?![\s.-]?\d)(?!\s?(?:Kč|CZK|EUR|USD|€|%|,-|mil|tis))/g},
   // SPZ: přesný moderní formát číslice+písmeno+alfanum + 4 číslice („3T9 4567“) —
@@ -132,9 +133,11 @@ const STRUCT = [
   //      ale NE před měnou/jednotkou („250 00 Kč“, „150 96 kusů“) a ne uvnitř delšího čísla
   {key:"PSC",     label:"PSČ",    cap:1,  re:/PSČ[\s:]{0,3}(\d{3}\s?\d{2})\b/g},
   {key:"PSC",     label:"PSČ",            re:/(?<!\d[ \t])\b\d{3}\s\d{2}\b(?![\s.,-]?\d)(?!\s?(?:Kč|CZK|EUR|USD|€|%|,-|[Kk]s\b|kus|km\b|kg\b|mil\b|tis\b|hod\b|let\b|m[²2]?\b|l\b|g\b))/gu},
-  {key:"PSC",     label:"PSČ",            re:/(?<![\d\/.,-])\b[1-7]\d{4}(?=\s+\p{Lu}\p{Ll}+)/gu},
-  {key:"ICO",     label:"IČO",    cap:1,  re:/(?<![\p{L}])IČO?[:\s]{1,3}(\d{2} ?\d{2} ?\d{2} ?\d{2})(?!\d)/gu},
-  {key:"ICO",     label:"IČO",            re:/\b\d{8}\b/g, valid:validICO},        // mod-11 (ceny/kódy bez platné kontrolní číslice propadnou)
+  {key:"PSC",     label:"PSČ",            re:/(?<![\d\/.,-])\b\d{5}(?=\s+\p{Lu}\p{Ll}+)(?!\s+(?:Kč|Eur|Euro|Sk)\b)/gu},
+  {key:"ICO",     label:"IČO",    cap:1,  re:/(?<![\p{L}\d])(?:IČO?|ICO|1ČO|IC0|IČ0)[:\s]{1,3}(\d{2} ?\d{2} ?\d{2} ?\d{2}|\d{2} \d{3} \d{3})(?!\d)/gu},
+  {key:"DIC",     label:"DIČ",    cap:1,  re:/(?<![\p{L}])DIČ[:\s]{1,3}(\d{8,10})(?!\d)/gu},
+  {key:"ICO",     label:"IČO",            re:/\b\d{8}\b/g, valid:validICO},
+  {key:"ICO",     label:"IČO",            re:/(?<!\d )\b\d{2} \d{3} \d{3}\b(?! ?\d)/g, valid:v=>validICO(v.replace(/ /g,""))},  // SK zápis „12 345 679“        // mod-11 (ceny/kódy bez platné kontrolní číslice propadnou)
 ];
 
 // placeholdery jsou VELKÝMI písmeny + číslo (OSOBA1) → názvové/strukturní
@@ -170,7 +173,7 @@ function anonymize(text,nerEnts){
   // nahradil, ale číslo domu zůstalo ("MESTO1 1428/9" → "MESTO1 CP1").
   out=out.replace(/((?:MESTO|ULICE)\d+\s+)(\d{1,4}\/\d{1,3})\b/g,(m,pre,num)=>pre+assign(num,"CP","č. popisné"));
   // jméno za akademickým titulem („JUDr. Richardem Novákem", „Ing. Mgr. Petr Svoboda") — i v 7. pádě
-  out=out.replace(/((?:\b(?:JUDr|MUDr|MDDr|MVDr|PhDr|RNDr|PaedDr|ThDr|PharmDr|Ing|Mgr|Bc|Dr|doc|prof)\.\s?)+)(\p{Lu}[\p{Ll}]+(?:\s+\p{Lu}[\p{Ll}]+){0,2})/gu,
+  out=out.replace(/((?:\b(?:JUDr|MUDr|MDDr|MVDr|PhDr|RNDr|PaedDr|ThDr|PharmDr|Ing|Mgr|Bc|Dr|doc|prof)\.\s?)+)(\p{Lu}[\p{Ll}]+(?:[ \t]+\p{Lu}[\p{Ll}]+){0,3})/gu,
     (m,title,name)=>title+assign(name,"OSOBA","osoba"));
   // město hned za PSČ nebo za ulicí („PSC1 Vítkov", „ULICE1, Bratislava") i když není ve slovníku
   out=out.replace(/((?:PSC\d+|ULICE\d+,)\s+)(\p{Lu}[\p{Ll}]+(?:[ -]\p{Lu}[\p{Ll}]+)?)(?![\p{L}])/gu,(m,pre,city)=>pre+assign(city,"MESTO","město/obec"));
@@ -197,7 +200,7 @@ function anonymize(text,nerEnts){
     "dovolená","dovolené","nemocenská","mzdová","mzdové","platná","platné","písemná","písemné","ústní",
     "veškerá","veškeré","veškerý","napadené","napadeného","napadeném","napadenému","napadená","napadený","usnesení","poučení",
     "rozhodnutí","odůvodnění","sražené","dlužné","dlužného","oprávněné","oprávněnou","povinné","vymáhané","vymáhaného","zletilé",
-    "nezletilé","nezletilá","nezletilý","slovenské","slovenského","české","českého","okresního","krajského","městského"]);
+    "nezletilé","nezletilá","nezletilý","mestský","mestská","mestské","mestského","mestskému","mestskom","okresný","okresného","okresnému","okresnom","krajskom","najvyšší","najvyššieho","tunajší","tunajšieho","slovenskej","českej","obchodnom","právnej","súdny","súdneho","vyššia","vyššie","slovenské","slovenského","české","českého","okresního","krajského","městského"]);
   // podstatná jména na -ení/-ání/-tí („Usnesení", „Poučení", „Rozhodnutí") nejsou příjmení
   const NOUNLIKE=/(?:ní|tí|ně)$/u;  // Usnesení, Advokátní, Současně, Rozhodnutí …
   // A) křestní ze slovníku + až 2 následující Velká slova (chytá příjmení i bez
@@ -210,7 +213,7 @@ function anonymize(text,nerEnts){
   // typické přípony příjmení vč. skloňovaných pádů — sdílí pas A (ořez) i pas B (anchor).
   // pozn.: třídy sk/ck/n BEZ „o“ a „u“ — jinak braly země a města („Německo“,
   // „Rakousku“, „Řecko“, „Brno“, „Lipno“) jako příjmení; příjmení na -sko/-cko/-no neexistují
-  const SUF="(?:ov(?:[áéýaěy]|ou|i|ej)|sk(?:[áéýaě]|ou|ého|ému|ém)|ck(?:[áéýa]|ou)|[čďňřšťž]?n(?:[áéýaěií]|ého|ou)|[áí]k(?:[aeuyů]|em|ovi)?|ek(?:[aeu]|em|ovi)?|ič(?:e|ovi)?|[ktlrds]á)";
+  const SUF="(?:ov(?:[áéýaěy]|ou|i|ej)|sk(?:[áéýaě]|ou|ého|ému|ém)|ck(?:[áéýa]|ou)|[čďňřšťž]?n(?:[áéýaěií]|ého|ou)|[áí]k(?:[aeuyů]|em|ovi)?|iak(?:[aeu]|om|ovi)?|ek(?:[aeu]|em|ovi)?|ič(?:e|ovi)?|[ktlrds]á)";
   const SUR_END=new RegExp("^\\p{Lu}[\\p{Ll}]*"+SUF+"$","u");
   // koncová hranice (?![\p{L}]) + volitelná česká skloňovací koncovka → chytí
   // i skloňovaná jména ("Tomáše", "Václavu", "Romana") jako CELÉ slovo, ne kmen.

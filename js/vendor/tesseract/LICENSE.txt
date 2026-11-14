@@ -1,0 +1,3 @@
+tesseract.js 7.0.0 a tesseract.js-core 7.0.0 — Apache License 2.0 — https://github.com/naptha/tesseract.js
+Jazyková data ces/slk/eng (4.0.0_best_int, @tesseract.js-data) — Apache License 2.0 — https://github.com/tesseract-ocr/tessdata
+Soubory beze změn; otisky ověřené proti jsDelivr i unpkg (14. 11. 2026).

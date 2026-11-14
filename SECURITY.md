@@ -13,5 +13,5 @@ Zvlášť nás zajímá:
 ## Jak je web chráněný
 - Žádný vlastní server ani databáze; lokální režim běží celý v prohlížeči.
 - CSP: skripty jen z vlastní domény (+ hashované JSON-LD), síť jen na LINDAT (přesný režim).
-- Všechny knihovny (pdf.js, mammoth, Lenis) i písma hostované na vlastní doméně, otisky ověřené.
+- Všechny knihovny (pdf.js, mammoth, Tesseract.js včetně WASM a jazykových dat, Lenis) i písma hostované na vlastní doméně, otisky ověřené.
 - Automaticky: CodeQL, Dependabot, secret scanning s push protection.

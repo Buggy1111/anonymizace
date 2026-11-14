@@ -27,7 +27,48 @@ function joinPdfItems(items){
   return out.replace(/[ \t]+\n/g,"\n").replace(/[ \t]{2,}/g," ");
 }
 
-async function extractText(file){
+// ── OCR (sken PDF, fotka dokumentu) — tesseract.js 7 hostovaný na vlastní doméně,
+//    běží ve vašem prohlížeči (WebAssembly), nic se neodesílá. Načítá se líně, až když je potřeba.
+const OCR_BASE="js/vendor/tesseract/";
+const OCR_LANGS=["ces","slk","eng"];
+const OCR_MAX_PAGES=20;
+let ocrWorkerP=null;
+function loadScriptOnce(src){
+  return new Promise((res,rej)=>{
+    if(document.querySelector(`script[data-src="${src}"]`)) return res();
+    const s=document.createElement("script"); s.src=src; s.dataset.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error("OCR se nepodařilo načíst")); document.head.appendChild(s);
+  });
+}
+async function ocrWorker(progress){
+  if(!ocrWorkerP) ocrWorkerP=(async()=>{
+    await loadScriptOnce(OCR_BASE+"tesseract.min.js");
+    return Tesseract.createWorker(OCR_LANGS,1,{
+      workerPath:OCR_BASE+"worker.min.js", corePath:OCR_BASE, langPath:OCR_BASE+"lang", gzip:true, workerBlobURL:false,
+      logger:m=>{ if(progress&&m.status==="loading language traineddata") progress("Připravuji rozpoznávání textu…"); }
+    });
+  })();
+  try{ return await ocrWorkerP; }catch(e){ ocrWorkerP=null; throw e; }
+}
+async function ocrImage(source,progress,label){
+  const w=await ocrWorker(progress);
+  if(progress) progress(label||"Rozpoznávám text…");
+  const r=await w.recognize(source);
+  return (r.data&&r.data.text||"").replace(/[ \t]+\n/g,"\n").trim();
+}
+async function ocrPdf(pdf,progress){
+  const n=Math.min(pdf.numPages,OCR_MAX_PAGES); let out="";
+  for(let i=1;i<=n;i++){
+    const pg=await pdf.getPage(i); const vp=pg.getViewport({scale:2.2});
+    const c=document.createElement("canvas"); c.width=Math.ceil(vp.width); c.height=Math.ceil(vp.height);
+    await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;
+    out+=await ocrImage(c,progress,`Rozpoznávám text ze skenu, strana ${i} z ${n}…`)+"\n\n";
+    c.width=c.height=0;
+  }
+  if(pdf.numPages>OCR_MAX_PAGES) out+=`\n[… dalších ${pdf.numPages-OCR_MAX_PAGES} stran nepřečteno, limit ${OCR_MAX_PAGES} stran]`;
+  return out.trim();
+}
+
+async function extractText(file,progress){
   const name=(file.name||"").toLowerCase();
   if(name.endsWith(".txt")||file.type==="text/plain") return await file.text();
   if(name.endsWith(".pdf")||file.type==="application/pdf"){
@@ -37,13 +78,14 @@ async function extractText(file){
     let out="", textChars=0;
     for(let i=1;i<=pdf.numPages;i++){ const pg=await pdf.getPage(i); const tc=await pg.getTextContent();
       out+=joinPdfItems(tc.items)+"\n"; textChars+=tc.items.reduce((n,it)=>n+(it.str||"").trim().length,0); }
-    // sken = stránky jsou jen obrázky, textová vrstva chybí → anonymizovat není co
-    if(textChars<20) throw new Error("PDF je sken (jen obrázek, bez textu). Takový dokument zatím přečíst neumíme, vložte prosím text nebo PDF s textovou vrstvou.");
+    // sken = stránky jsou jen obrázky bez textové vrstvy → přečíst přes OCR
+    if(textChars<20) return await ocrPdf(pdf,progress);
     return out.trim();
   }
   if(name.endsWith(".docx")){
     if(!window.mammoth) throw new Error("mammoth se nenačetlo");
     return (await mammoth.extractRawText({arrayBuffer:await file.arrayBuffer()})).value.trim();
   }
-  throw new Error("nepodporovaný formát (jen TXT, PDF, DOCX)");
+  if(/\.(png|jpe?g|webp|bmp|gif)$/.test(name)||/^image\//.test(file.type)) return await ocrImage(file,progress,"Rozpoznávám text z obrázku…");
+  throw new Error("nepodporovaný formát (TXT, PDF, DOCX nebo obrázek)");
 }

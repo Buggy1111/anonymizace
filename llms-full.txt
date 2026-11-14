@@ -38,7 +38,7 @@ Advokáti a advokátní koncipienti, soudy a úřady, lékaři a zdravotnická z
 Stejný údaj dostane v celém textu stejnou značku (dvakrát „Jan Novák“ = dvakrát OSOBA1).
 
 ## Limity
-- Do 20 000 znaků najednou (asi 8 stran). Soubory PDF, DOCX a TXT do 10 MB.
+- Do 20 000 znaků najednou (asi 8 stran). Soubory PDF, DOCX, TXT a obrázky (PNG, JPG, WebP) do 20 MB. Naskenované PDF a fotky přečte OCR (Tesseract, čeština, slovenština, angličtina) přímo v prohlížeči, max. 20 stran; nic se neodesílá.
 - Jde o pseudonymizaci: výstup si vždy přečtěte, nepřímé indicie (funkce, vzácná příjmení v kontextu) nástroj nemusí poznat.
 
 ## Otázky a odpovědi
