@@ -4,6 +4,7 @@
    formátování ostatních částí odstavce zůstalo (Word dělí text do „runů" i uprostřed jména),
    vymaže autora z metadat a revizí a zabalí zpět (změněné soubory bez komprese). */
 
+const DOCX_PART_MAX=64*1024*1024;   // jedna část DOCX po rozbalení
 const DOCX_W="http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 
 const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
@@ -30,8 +31,13 @@ function unzipEntries(buf){
 async function inflate(en){
   if(en.method===0) return en.data;
   if(en.method!==8) throw new Error("nepodporovaná komprese v DOCX");
-  const s=new Blob([en.data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(s).arrayBuffer());
+  // ochrana proti „zip bombě": rozbalujeme po kouscích a nad limit přestaneme (hlavička může lhát)
+  const rd=new Blob([en.data]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  const parts=[]; let n=0;
+  for(;;){const {done,value}=await rd.read(); if(done) break; n+=value.length;
+    if(n>DOCX_PART_MAX){await rd.cancel(); throw new Error("část "+en.name+" je po rozbalení větší než "+(DOCX_PART_MAX>>20)+" MB");}
+    parts.push(value);}
+  const out=new Uint8Array(n); let o=0; for(const p of parts){out.set(p,o);o+=p.length;} return out;
 }
 function zipEntries(entries){
   const parts=[], cd=[]; let off=0;
