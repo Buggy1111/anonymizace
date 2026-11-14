@@ -87,6 +87,7 @@ const STRUCT = [
   {key:"UCET",    label:"číslo účtu",     re:/\b\d{1,6}-\d{2,10}\/\d{4}\b/g},  // PŘED rodným číslem: 6015-1234567890/0100 není RČ
   {key:"RC",      label:"rodné číslo",  cap:1, re:/(?:RČ|rodné\s+číslo|r\.\s*č\.|číslo\s+pojištěnce|č\.\s*pojištěnce)[:\s]{0,3}(\d{6}\s?\/?\s?\d{3,4})(?!\d)/giu},
   {key:"RC",      label:"rodné číslo",    re:/\b\d{6}\/\d{3,4}\b/g},
+  {key:"UCET",    label:"číslo účtu",     re:/(?<![\d\/-])\b\d{7,10}\/\d{4}\b(?![\d\/])/g},   // účet bez slova „účet“ (tabulky); 7–10 číslic ≠ RČ
   {key:"RC",      label:"rodné číslo",    re:/\b\d{10}\b/g, valid:validRC},        // bez lomítka (datum+mod11)
   {key:"SPZN",    label:"spisová značka", re:/\b\d{1,3}\s?[A-Z][A-Za-z]{0,3}\s?\d{1,5}\/\d{4}(?:\s?-\s?\d{1,4})?\b|\b\d{1,3}\s?[A-Z][a-z]{0,3}\/\d{1,5}\/\d{4}(?:\s?-\s?\d{1,4})?\b/g},
   // ID datové schránky: kontext „schránk…“ + 7znakový alfanum. token (musí mít číslici)
@@ -205,7 +206,7 @@ function anonymize(text,nerEnts){
     "dovolená","dovolené","nemocenská","mzdová","mzdové","platná","platné","písemná","písemné","ústní",
     "veškerá","veškeré","veškerý","napadené","napadeného","napadeném","napadenému","napadená","napadený","usnesení","poučení",
     "rozhodnutí","odůvodnění","sražené","dlužné","dlužného","oprávněné","oprávněnou","povinné","vymáhané","vymáhaného","zletilé",
-    "nezletilé","nezletilá","nezletilý","mestský","mestská","mestské","mestského","mestskému","mestskom","okresný","okresného","okresnému","okresnom","krajskom","najvyšší","najvyššieho","tunajší","tunajšieho","slovenskej","českej","obchodnom","právnej","súdny","súdneho","vyššia","vyššie",
+    "nezletilé","nezletilá","nezletilý","dlužná","dlužný","dlužnou","dlužnému","mestský","mestská","mestské","mestského","mestskému","mestskom","okresný","okresného","okresnému","okresnom","krajskom","najvyšší","najvyššieho","tunajší","tunajšieho","slovenskej","českej","obchodnom","právnej","súdny","súdneho","vyššia","vyššie",
     // běžná slova smluv (test na veřejných vzorech smluv z mpsv.cz / gov.cz, 14. 11. 2026)
     "zákona","zákon","majetek","majetku","majetkem","kupujícímu","kupujícího","kupující","prodávajícímu","prodávajícího","prodávající",
     "nedohodnou","vlastnické","vlastnický","vlastnická","vlastnického","jiné","jiná","jiný","žádná","žádné","žádný","nedílnou","nedílná","nedílné",
