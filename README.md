@@ -6,13 +6,24 @@
 
 Doprovodný web k MCP serveru [anonymize-mcp](https://github.com/Buggy1111/anonymize-mcp) — pro lidi, kteří nechtějí řešit instalaci ani MCP.
 
+![Ukázka: text se jmény a rodným číslem se při psaní nahrazuje značkami, falešný nález jde vrátit kliknutím a odpověď z AI se doplní původními údaji](docs/demo.gif)
+
+**Co umí anonymizér** — vše běží ve vašem prohlížeči, nic se neodesílá (kromě volitelného přesného režimu přes ÚFAL):
+
+- přes 20 druhů osobních údajů včetně slovenských (rodná čísla s kontrolou, IČO, účty, IBAN, částky v jakémkoli zápisu, spisové značky…)
+- **PDF, Word, TXT i fotky a skeny** — OCR (Tesseract) přímo v prohlížeči, čeština a slovenština; PDF s heslem
+- **Word ven se zachovaným formátováním** — bez autora ve vlastnostech a revizích; před stažením kontrola, že v souboru nezůstal žádný údaj
+- **hromadně** — víc souborů najednou do ZIPu
+- **výběr, co skrývat**, a **vrácení falešného nálezu** kliknutím na značku
+- **odpověď z AI zpět s údaji** — vložíte odpověď ChatGPT/Claude se značkami a dostanete ji s původními jmény
+
 ## Nástroje
 
 - **Anonymizace** — skryje osobní údaje (jména, rodná čísla, adresy, telefony, IČO, účty, peněžní částky v jakémkoli zápisu, e-maily, IP adresy, čísla pasů, řidičských průkazů a smluv, IČP/IČZ…) a nahradí je značkami (OSOBA1, CASTKA1…). Lokální offline režim i přesný NER. Vlastní stránka `anonymize.html`.
 
 ### Testy
 
-`tools/test-overredaction.cjs` (lokální, gitignorované) — 108 případů: díry i přetažení (data, verze, „Smlouva o dílo“ zůstávají).
+`tools/test-overredaction.cjs` (lokální, gitignorované) — 172 případů: díry, přetažení, reálné vzory dokumentů (jen smyšlené hodnoty) a ReDoS (data, verze, „Smlouva o dílo“ zůstávají).
 - **NER** — rozpoznávání pojmenovaných entit (NameTag 3).
 - **Morfologie** — lemma, slovní druh, mluvnické kategorie (UDPipe 2).
 - **Korektor** — oprava překlepů a diakritiky (Korektor).
