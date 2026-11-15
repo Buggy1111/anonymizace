@@ -26,7 +26,8 @@ function anon(text,ents){
   const r=anonymize(text,ents,[...custom.values()]);
   const keep=[], back=new Map();
   for(const x of r.replacements){
-    if(offTypes.has(x.type)||ignored.has(x.original.toLowerCase())) back.set(x.placeholder,x.original); else keep.push(x);
+    // ručně skryté má přednost před vypnutou skupinou i dřívějším „vrátit“ (nikdy se neodkryje samo)
+    if(!x.manual&&(offTypes.has(x.type)||ignored.has(x.original.toLowerCase()))) back.set(x.placeholder,x.original); else keep.push(x);
   }
   if(!back.size) return r;
   return {anonymized:r.anonymized.replace(PH_RE,m=>back.has(m)?back.get(m):m),replacements:keep,reverted:[...back].map(([p,o])=>({placeholder:p,original:o}))};
@@ -64,19 +65,19 @@ function render(anonymized,replacements){
 
   // statistiky
   clear(statsEl);
-  const byType={}; replacements.forEach(x=>byType[x.type]=(byType[x.type]||0)+1);
+  const byType={}; replacements.forEach(x=>{if(!x.variant)byType[x.type]=(byType[x.type]||0)+1;});
   Object.keys(byType).forEach(t=>{
     const s=span("stat","");const b=document.createElement("b");b.textContent=byType[t];
     s.appendChild(b);s.appendChild(document.createTextNode(" "+(TYPE_LABELS[t]||t)));statsEl.appendChild(s);
   });
   if(replacements.length){
     const s=span("stat total","");
-    const b=document.createElement("b");b.textContent=replacements.length;
+    const b=document.createElement("b");b.textContent=replacements.filter(x=>!x.variant).length;
     s.appendChild(b);s.appendChild(document.createTextNode(" celkem"));statsEl.appendChild(s);
   }
 
   // tabulka
-  repcount.textContent=replacements.length;
+  repcount.textContent=replacements.filter(x=>!x.variant).length;
   clear(tableEl);
   if(!replacements.length){tableEl.appendChild(span("empty","Zatím nic k nahrazení. Vložte text nebo zkuste ukázku."));return;}
   const table=document.createElement("table");
@@ -136,7 +137,7 @@ window.addEventListener("scroll",()=>{hideBtn.hidden=true;},{passive:true});
 hideBtn.addEventListener("mousedown",e=>e.preventDefault());   // nezrušit výběr před kliknutím
 hideBtn.addEventListener("click",()=>{
   if(!pendingSel)return;
-  custom.set(pendingSel.toLowerCase(),pendingSel); hideBtn.hidden=true;
+  custom.set(pendingSel.toLowerCase(),pendingSel); ignored.delete(pendingSel.toLowerCase()); renderIgnored(); hideBtn.hidden=true;
   const s=window.getSelection(); if(s)s.removeAllRanges();
   renderCustom(); rerender();
 });

@@ -157,13 +157,21 @@ const COMPANY_LEAD=new Set(["dodavatel","odběratel","zhotovitel","objednatel","
 // regexy je znovu nematchnou, takže žádné sentinely nejsou potřeba.
 function anonymize(text,nerEnts,custom){
   const reps=[]; const counters={}; const registry=new Map();
-  function assign(orig,key,label){
+  const variants=new Set();
+  function assign(orig,key,label,manual){
     const k=key+"::"+orig.toLowerCase().replace(/\s+/g," ").trim();
-    if(registry.has(k)) return registry.get(k);
+    if(registry.has(k)){
+      // jiný zápis téhož (BALLER vs Baller): zapsat jako variantu, ať ho najde i export DOCX a jeho kontrola
+      const plc=registry.get(k), o=orig.trim();
+      if(!variants.has(plc+"\u0000"+o)&&!reps.some(r=>r.placeholder===plc&&r.original===o)){
+        variants.add(plc+"\u0000"+o); reps.push({original:o,placeholder:plc,type:key,label,variant:true,manual:!!manual});
+      }
+      return plc;
+    }
     counters[key]=(counters[key]||0)+1;
     const plc=key+counters[key];
     registry.set(k,plc);
-    reps.push({original:orig.trim(),placeholder:plc,type:key,label});
+    reps.push({original:orig.trim(),placeholder:plc,type:key,label,manual:!!manual});
     return plc;
   }
   let out=text;
@@ -171,7 +179,7 @@ function anonymize(text,nerEnts,custom){
   if(custom&&custom.length){
     for(const c of [...new Set(custom.map(x=>x.trim()).filter(x=>x.length>=2))].sort((a,b)=>b.length-a.length)){
       const re=new RegExp("(?<![\\p{L}\\p{N}])"+c.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+")+"(?![\\p{L}\\p{N}])","giu");
-      out=out.replace(re,m=>assign(m,COMPANY_FORM.test(m)?"FIRMA":"SKRYTO",COMPANY_FORM.test(m)?"firma":"ručně skryto"));
+      out=out.replace(re,m=>assign(m,COMPANY_FORM.test(m)?"FIRMA":"SKRYTO",COMPANY_FORM.test(m)?"firma":"ručně skryto",true));
     }
   }
   // STRUCT: u položek s `cap` redigujeme jen zachycenou hodnotu (kontext zůstává).

@@ -222,6 +222,9 @@ console.log("Firmy podle právní formy a ručně skryté (15. 11. 2026)");
   keep("Dodavatel Baller sro","Dodavatel"); keep("viz článek 5 a.s. ne","článek 5"); keep("Smlouva o dílo s.r.o. ne","Smlouva o dílo");
   const r=anonymize("Petr pracuje u Pekárna U Lípy a u pekárna u lípy.",null,["Pekárna U Lípy"]);
   t("ručně skryté všude a bez ohledu na velká písmena",!/Lípy|lípy/.test(r.anonymized)&&/SKRYTO1.*SKRYTO1/.test(r.anonymized),r.anonymized);
+  const v=anonymize("Pekárna U Lípy a PEKÁRNA U LÍPY",null,["Pekárna U Lípy"]);
+  t("jiný zápis ručně skrytého je v náhradách jako varianta (DOCX ho najde)",
+    v.replacements.some(x=>x.original==="PEKÁRNA U LÍPY"&&x.variant&&x.manual)&&!/LÍPY|Lípy/.test(v.anonymized),JSON.stringify(v.replacements));
   const f=anonymize("Odběratel Baller, s.r.o. a Baller, s.r.o.",null,["Baller, s.r.o."]);
   t("ručně skrytá firma dostane značku FIRMA",/FIRMA1/.test(f.anonymized)&&!/SKRYTO/.test(f.anonymized),f.anonymized);
 }
