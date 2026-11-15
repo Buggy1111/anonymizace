@@ -258,7 +258,7 @@ function anonymize(text,nerEnts,custom){
   // typické přípony příjmení vč. skloňovaných pádů — sdílí pas A (ořez) i pas B (anchor).
   // pozn.: třídy sk/ck/n BEZ „o“ a „u“ — jinak braly země a města („Německo“,
   // „Rakousku“, „Řecko“, „Brno“, „Lipno“) jako příjmení; příjmení na -sko/-cko/-no neexistují
-  const SUF="(?:ov(?:[áéýaěy]|ou|i|ej)|sk(?:[áéýaě]|ou|ého|ému|ém)|ck(?:[áéýa]|ou)|[čďňřšťž]?n(?:[áéýaěií]|ého|ou)|[áí]k(?:[aeuyů]|em|ovi)?|iak(?:[aeu]|om|ovi)?|ek(?:[aeu]|em|ovi)?|ič(?:e|ovi)?|[ktlrds]á)";
+  const SUF="(?:ov(?:[áéaěy]|ou|i|ej)|sk(?:[áéýaě]|ou|ého|ému|ém)|ck(?:[áéýa]|ou)|[čďňřšťž]?n(?:[áéýaěií]|ého|ou)|[áí]k(?:[aeuyů]|em|ovi)?|iak(?:[aeu]|om|ovi)?|ek(?:[aeu]|em|ovi)?|ič(?:e|ovi)?|[ktlrds]á)";
   const SUR_END=new RegExp("^\\p{Lu}[\\p{Ll}]*"+SUF+"$","u");
   // koncová hranice (?![\p{L}]) + volitelná česká skloňovací koncovka → chytí
   // i skloňovaná jména ("Tomáše", "Václavu", "Romana") jako CELÉ slovo, ne kmen.

@@ -28,6 +28,16 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   const [dl]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const out=path.join(tmp,'z.docx'); await dl.saveAs(out);
   const raw=require('child_process').execFileSync('unzip',['-p',out]).toString('utf8');
   t('DOCX: žádný originál v souboru',!SECRETS.concat(['605 999','Petr Svoboda','Marie Svobodová']).some(s=>raw.includes(s)));
+  // ruční skrytí → platí i v exportu DOCX a PDF
+  await p.evaluate(()=>{const t=document.getElementById('input');const i=t.value.indexOf('zaplacení');t.focus();t.setSelectionRange(i,i+9);});
+  await p.dispatchEvent('#input','mouseup');await p.waitForTimeout(200);await p.click('.hide-sel');await p.waitForTimeout(500);
+  const [dh]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const oh=path.join(tmp,'h.docx'); await dh.saveAs(oh);
+  const rawH=require('child_process').execFileSync('unzip',['-p',oh]).toString('utf8');
+  t('ručně skryté: v DOCX nahrazeno',!/zaplacení/i.test(rawH)&&/SKRYTO1/.test(rawH));
+  const [ph]=await Promise.all([p.waitForEvent('download'),p.click('#pdf-dl')]); const pph=path.join(tmp,'h.pdf'); await ph.saveAs(pph);
+  const ptH=require('child_process').execFileSync('pdftotext',['-enc','UTF-8',pph,'-']).toString('utf8');
+  t('ručně skryté: v PDF nahrazeno',!/zaplacení/i.test(ptH)&&/SKRYTO1/.test(ptH),ptH.slice(0,200));
+  await p.click('#custom button >> nth=0');await p.waitForTimeout(300);
   // obrázky a náhled → šedá plocha, popisek obrázku prohledán; vložený objekt → DOCX odmítnut
   st=await load(path.join(F,'images.docx'));
   const [di]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const oi=path.join(tmp,'i.docx'); await di.saveAs(oi);
