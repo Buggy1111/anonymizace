@@ -128,8 +128,19 @@ const GRAY_SVG='<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><re
 function stored(en,b){Object.assign(en,{method:0,data:b,csize:b.length,usize:b.length,crc:crc32(b)});}
 async function anonymizeDocx(buf,pairs){
   const xmlEsc=v=>v.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  const matchers=buildMatchers(pairs), rawMatchers=buildMatchers(pairs.map(p=>({original:xmlEsc(p.original||""),placeholder:p.placeholder}))), entries=unzipEntries(buf), enc=new TextEncoder(), dec=new TextDecoder();
-  const emb=entries.find(en=>!en.name.endsWith("/")&&!DOCX_XML.test(en.name)&&!DOCX_IMAGE.test(en.name)&&!DOCX_KEEP.test(en.name));
+  const enc=new TextEncoder(), dec=new TextDecoder();
+  // adresářové položky OPC nepotřebuje a mohly by nést data → do výstupu je nedáme vůbec
+  const entries=unzipEntries(buf).filter(en=>!en.name.endsWith("/"));
+  const matchers=buildMatchers(pairs), rawMatchers=buildMatchers(pairs.map(p=>({original:xmlEsc(p.original||""),placeholder:p.placeholder})));
+  // relace: vložené objekty odmítneme podle typu (ne podle jména souboru), fonty pustíme jen přes relaci font
+  const fonts=new Set();
+  for(const en of entries){ if(!/\.rels$/i.test(en.name)) continue;
+    const dir=en.name.replace(/_rels\/[^/]*$/,""), raw=dec.decode(await inflate(en));
+    for(const m of raw.matchAll(/<Relationship\b[^>]*>/g)){const type=(m[0].match(/\bType="([^"]*)"/)||[])[1]||"", target=(m[0].match(/\bTarget="([^"]*)"/)||[])[1]||"";
+      const kind=type.split("/").pop();
+      if(/^(oleObject|package|aFChunk|control|activeXControl\w*|vbaProject|embeddedFont)$/i.test(kind)) throw new Error("dokument obsahuje vložený objekt ("+kind+"), jehož obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
+      if(kind==="font"&&!/TargetMode="External"/.test(m[0])) fonts.add(target.startsWith("/")?target.slice(1):new URL(target,"http://x/"+dir).pathname.slice(1));}}
+  const emb=entries.find(en=>!DOCX_XML.test(en.name)&&!DOCX_IMAGE.test(en.name)&&!(DOCX_KEEP.test(en.name)&&fonts.has(en.name)));
   if(emb) throw new Error("dokument obsahuje vložený objekt nebo neznámou část ("+emb.name.split("/").pop()+"), jejíž obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
   let total=0, images=0; const pngParts=[];
   for(const en of entries){

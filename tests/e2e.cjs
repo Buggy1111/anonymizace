@@ -38,6 +38,11 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   t('DOCX s vloženým objektem: odmítnut',/vložený objekt/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
   st=await load(path.join(F,'bad','unknown-part.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
   t('DOCX s neznámou částí: odmítnut',/neznámou část \(data\)/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
+  st=await load(path.join(F,'bad','ole-as-font.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
+  t('DOCX: OLE objekt přejmenovaný na font odmítnut',/oleObject/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
+  st=await load(path.join(F,'dir-with-data.docx'));
+  const [dd]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const od=path.join(tmp,'d.docx'); await dd.saveAs(od);
+  t('DOCX: adresářová položka s daty vynechána',!/word\/secret/.test(cp.execFileSync('unzip',['-Z1',od]).toString()));
   st=await load(path.join(F,'bad','glossary-img.docx'));
   const [dg]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const og=path.join(tmp,'g.docx'); await dg.saveAs(og);
   t('DOCX: obrázek i mimo word/media nahrazen',cp.execFileSync('unzip',['-p',og,'word/glossary/media/image9.jpeg']).equals(gray));
