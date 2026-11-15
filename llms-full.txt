@@ -1,6 +1,6 @@
 # Anonymizace (anonymizace.js.org) — plný popis
 
-Anonymizace.js.org je bezplatný webový nástroj, který v českých dokumentech najde osobní a citlivé údaje a nahradí je značkami. Text zůstane čitelný („Žalobce OSOBA1, r. č. RC1, žádá CASTKA1 na účet IBAN1.“), ale osobní údaje v něm nejsou. Běží přímo ve webovém prohlížeči, nevyžaduje registraci ani instalaci a je zdarma pro nekomerční použití.
+Anonymizace.js.org je bezplatný webový nástroj, který v českých dokumentech hledá osobní a citlivé údaje a rozpoznané nálezy nahrazuje značkami. Text zůstane čitelný („Žalobce OSOBA1, r. č. RC1, žádá CASTKA1 na účet IBAN1.“). Výstup je nutné zkontrolovat, některé údaje mohou zůstat nerozpoznané. Běží přímo ve webovém prohlížeči, nevyžaduje registraci ani instalaci a je zdarma pro nekomerční použití.
 
 ## K čemu slouží
 - Vložit smlouvu, spis, lékařskou zprávu nebo e-mail do ChatGPT, Claude či Gemini bez osobních údajů.
@@ -13,16 +13,16 @@ Advokáti a advokátní koncipienti, soudy a úřady, lékaři a zdravotnická z
 
 ## Režimy
 1. Lokální režim (výchozí): údaje se hledají podle vzorů a kontrolních součtů přímo v prohlížeči. Na server se neodešle nic (0 bajtů), funguje i bez internetu.
-2. Přesný režim (na vyžádání): text odejde šifrovaně na akademický server LINDAT (Matematicko-fyzikální fakulta Univerzity Karlovy). Model NameTag 3 rozpozná jména osob, firmy a instituce i ve skloňovaných tvarech. Výsledek se spojí s lokálními pravidly. Podle podmínek ÚFAL mohou být zaslaná data použita ke zlepšení jejich služeb, proto citlivé dokumenty anonymizujte v lokálním režimu.
+2. Přesný režim (na vyžádání): text odejde šifrovaně na akademický server LINDAT (Matematicko-fyzikální fakulta Univerzity Karlovy). Model NameTag rozpozná jména osob, firmy a instituce i ve skloňovaných tvarech. Výsledek se spojí s lokálními pravidly. Podle podmínek ÚFAL mohou být zaslaná data použita ke zlepšení jejich služeb, proto citlivé dokumenty anonymizujte v lokálním režimu.
 
 ## Co nástroj pozná (značka)
 - Jméno a příjmení (OSOBA)
-- Firma, instituce (FIRMA, INSTITUCE) — v přesném režimu
+- Firma podle právní formy i lokálně; instituce v přesném režimu (FIRMA, INSTITUCE)
 - Město, ulice, PSČ (MESTO, ULICE, PSC)
 - Rodné číslo s kontrolou dělitelnosti 11 (RC)
 - IČO s kontrolní číslicí (ICO), DIČ (DIC)
 - IBAN s kontrolou mod 97 (IBAN), české číslo účtu (UCET)
-- Peněžní částky v jakémkoli zápisu: 80 000 Kč, kč, Kč 80 000, CZK, €, „tis. Kč“, „korun českých“, částka slovy i „ve výši 80 000“ (CASTKA)
+- Peněžní částky v podporovaných zápisech: 80 000 Kč, kč, Kč 80 000, CZK, €, „tis. Kč“, „korun českých“, částka slovy i „ve výši 80 000“ (CASTKA)
 - Platební karta s Luhnovým algoritmem (KARTA)
 - Telefon vč. +420 a 00420 (TELEFON), e-mail i maskovaný „(at)“ (EMAIL), webová adresa (URL), IP adresa (IP)
 - Datum, jen platná data (DATUM)
@@ -43,7 +43,8 @@ Stejný údaj dostane v celém textu stejnou značku (dvakrát „Jan Novák“ 
 - Hromadně: víc souborů najednou (TXT, PDF, DOCX, fotky) → ZIP: ke každému PDF/textu/fotce formátované PDF a .txt, Word zůstane Wordem; plus souhrn, vše v prohlížeči.
 - Stáhnout PDF: hotový PDF soubor jen s anonymizovaným textem, vytvořený přímo v prohlížeči (diakritika, více stran). PDF chráněné heslem se otevře po zadání hesla, heslo zůstane v prohlížeči.
 - Zpětné doplnění: odpověď z AI se značkami (OSOBA1, RC1…) vložíte do druhého pole a anonymizér značky nahradí původními údaji, jen ve vašem prohlížeči.
-- Do 20 000 znaků najednou (asi 8 stran). Soubory PDF, DOCX, TXT a obrázky (PNG, JPG, WebP) do 20 MB. Naskenované PDF a fotky přečte OCR (Tesseract, čeština, slovenština, angličtina) přímo v prohlížeči, max. 20 stran; nic se neodesílá.
+- Anonymizér: do 500 000 znaků na dokument, i v hromadném zpracování. Soubory PDF, DOCX, TXT a obrázky (PNG, JPG, WebP) do 20 MB. OCR (Tesseract, čeština, slovenština, angličtina) běží v prohlížeči a zpracuje nejvýše 20 skenovaných stran jednoho PDF. Tyto limity nezaručují úplnost rozpoznání údajů.
+- Samostatné jazykové nástroje na nastroje.html: do 20 000 znaků a 10 MB na soubor. Živá ukázka na úvodu: do 20 000 znaků. Pole pro zpětné doplnění odpovědi AI: do 40 000 znaků.
 - Jde o pseudonymizaci: výstup si vždy přečtěte, nepřímé indicie (funkce, vzácná příjmení v kontextu) nástroj nemusí poznat.
 
 ## Otázky a odpovědi
@@ -58,10 +59,10 @@ Stejný údaj dostane v celém textu stejnou značku (dvakrát „Jan Novák“ 
 **Kolik to stojí?** Nic, pro nekomerční použití.
 
 ## Další nástroje na webu
-Rozpoznání pojmenovaných entit (NameTag 3, 35 jazyků), morfologická analýza (UDPipe 2), oprava pravopisu a doplnění diakritiky (Korektor), strojový překlad mezi češtinou, angličtinou, němčinou, francouzštinou, polštinou, ruštinou a ukrajinštinou (CUBBITT). https://anonymizace.js.org/nastroje.html
+Rozpoznání pojmenovaných entit v českém textu (NameTag), morfologická analýza (UDPipe), oprava pravopisu a doplnění diakritiky (Korektor), strojový překlad mezi češtinou, angličtinou, němčinou, francouzštinou, polštinou, ruštinou a ukrajinštinou (CUBBITT). https://anonymizace.js.org/nastroje.html
 
 ## Pro vývojáře
-MCP server anonymize-mcp (Python, PyPI) nabízí stejnou anonymizaci pro AI asistenty: `pip install anonymize-mcp`, v konfiguraci MCP `"command": "anonymize-mcp"`. https://github.com/Buggy1111/anonymize-mcp
+MCP server anonymize-mcp (Python, PyPI) je doprovodný nástroj pro AI asistenty: `pip install anonymize-mcp`, v konfiguraci MCP `"command": "anonymize-mcp"`. https://github.com/Buggy1111/anonymize-mcp
 
 ## O projektu
 Autor: Michal Bürgermeister (https://github.com/Buggy1111). Neoficiální komunitní projekt; není provozován ani schválen ÚFAL MFF UK, využívá jejich veřejná API LINDAT/CLARIAH-CZ. Kód webu: PolyForm Noncommercial 1.0.0.
