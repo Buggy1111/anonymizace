@@ -230,10 +230,10 @@ docxBtn.onclick=async function(){
   if(!lastDocx)return; const b=this;
   if(lastDocx.truncated){const f=document.getElementById("anon-fst");f.className="fst err";f.textContent="Dokument je delší než "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků, část by se neprohledala. DOCX proto nestáhnu, rozdělte ho prosím na menší části.";return;} b.disabled=true; const fst=document.getElementById("anon-fst");
   try{
-    const {blob,count}=await anonymizeDocx(lastDocx.buf,lastReps);
+    const {blob,count,images}=await anonymizeDocx(lastDocx.buf,lastReps);
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="anonymizovany-dokument.docx";
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-    fst.className="fst ok";fst.textContent="Staženo: "+count+" náhrad ve Wordu, formátování zachováno, autor odstraněn z vlastností.";
+    fst.className="fst ok";fst.textContent="Staženo: "+count+" náhrad ve Wordu, formátování zachováno, autor odstraněn z vlastností."+(images?" Obrázky ("+images+") jsme nahradili šedou plochou, mohly obsahovat osobní údaje.":"");
   }catch(e){fst.className="fst err";fst.textContent="DOCX se nepodařilo vytvořit: "+e.message;}
   b.disabled=false;
 };

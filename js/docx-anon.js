@@ -96,17 +96,34 @@ function anonymizeWordXml(xml,matchers){
     }
     ts.forEach((t,k)=>{if(t.textContent!==texts[k]){t.textContent=texts[k];t.setAttributeNS("http://www.w3.org/XML/1998/namespace","xml:space","preserve");}});
   }
+  // popisky obrázků (alternativní text) jsou v atributech, ne ve w:t
+  for(const tag of ["docPr","cNvPr"]) for(const d of Array.from(doc.getElementsByTagNameNS("*",tag)))
+    for(const at of ["descr","title"]){const v=d.getAttribute(at); if(!v) continue; let nv=v;
+      for(const m of matchers){m.re.lastIndex=0; nv=nv.replace(m.re,()=>{count++;return m.ph;});} if(nv!==v) d.setAttribute(at,nv);}
   let out=new XMLSerializer().serializeToString(doc);
   out=out.replace(/(\bw:author=")[^"]*"/g,'$1Autor"').replace(/(\bw:initials=")[^"]*"/g,'$1A"');   // autoři revizí a komentářů
   if(!/^<\?xml/.test(out)) out='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+out;
   return {xml:out,count};
 }
 const DOCX_TEXT_PARTS=/^word\/(document|header\d*|footer\d*|footnotes|endnotes|comments\w*)\.xml$/;
+// obrázky (sken, podpis, fotka OP) i náhled první stránky můžou nést osobní údaje, které
+// v nich nepřečteme → nahradíme je šedou plochou 1×1 px (Word ji roztáhne na původní rozměr)
+const DOCX_IMAGE=/^(word\/media\/[^/]*|docProps\/thumbnail)\.(png|jpe?g|jfif|gif|bmp|tiff?|emf|wmf|emz|wmz|webp|wdp|svg)$/i;
+// vložené objekty (Excel, PDF, OLE, ActiveX, altChunk HTML/RTF) neumíme prohledat → DOCX nevytvoříme
+const DOCX_EMBED=/^word\/(embeddings|activeX)\/|\.(bin|mht|mhtml|rtf|html?)$/i;
+const GRAY_PNG=Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGO4CQAA2wDaZNW9eAAAAABJRU5ErkJggg=="),c=>c.charCodeAt(0));
+const GRAY_SVG='<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="#d9d9d9"/></svg>';
+function stored(en,b){Object.assign(en,{method:0,data:b,csize:b.length,usize:b.length,crc:crc32(b)});}
 async function anonymizeDocx(buf,pairs){
   const xmlEsc=v=>v.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const matchers=buildMatchers(pairs), rawMatchers=buildMatchers(pairs.map(p=>({original:xmlEsc(p.original||""),placeholder:p.placeholder}))), entries=unzipEntries(buf), enc=new TextEncoder(), dec=new TextDecoder();
-  let total=0;
+  const emb=entries.find(en=>DOCX_EMBED.test(en.name));
+  if(emb) throw new Error("dokument obsahuje vložený objekt ("+emb.name.split("/").pop()+"), jehož obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
+  let total=0, images=0; const pngParts=[];
   for(const en of entries){
+    if(DOCX_IMAGE.test(en.name)){images++;
+      if(/\.svg$/i.test(en.name)) stored(en,enc.encode(GRAY_SVG)); else {stored(en,GRAY_PNG.slice());pngParts.push("/"+en.name);}
+      continue;}
     let xml=null;
     if(DOCX_TEXT_PARTS.test(en.name)){const r=anonymizeWordXml(dec.decode(await inflate(en)),matchers);xml=r.xml;total+=r.count;}
     else if(en.name==="docProps/core.xml") xml=dec.decode(await inflate(en)).replace(/(<(dc:creator|cp:lastModifiedBy|dc:title|dc:subject|cp:keywords|dc:description)>)[^<]*(<\/\2>)/g,"$1$3");
@@ -115,8 +132,14 @@ async function anonymizeDocx(buf,pairs){
     // všechny ostatní XML části (odkazy v .rels, grafy, diagramy, vlastní XML…) — náhrada v surovém XML
     else if(/\.(xml|rels)$/i.test(en.name)){const raw=dec.decode(await inflate(en));let t=raw;
       for(const m of rawMatchers){m.re.lastIndex=0;t=t.replace(m.re,()=>{total++;return m.ph;});} if(t!==raw) xml=t;}
-    if(xml!==null){const b=enc.encode(xml);Object.assign(en,{method:0,data:b,csize:b.length,usize:b.length,crc:crc32(b)});}
+    if(xml!==null) stored(en,enc.encode(xml));
   }
+  // nahrazené obrázky jsou PNG i pod původní příponou → typ obsahu přepíšeme pro každou část zvlášť
+  const ct=entries.find(en=>en.name==="[Content_Types].xml");
+  if(ct&&pngParts.length){let x=dec.decode(await inflate(ct));
+    for(const pn of pngParts){const a=xmlEsc(pn).replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+      x=x.replace(new RegExp('<Override\\s[^>]*PartName="'+a+'"[^>]*/>',"gi"),"").replace("</Types>",'<Override PartName="'+xmlEsc(pn)+'" ContentType="image/png"/></Types>');}
+    stored(ct,enc.encode(x));}
   const decode=x=>x.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16))).replace(/&amp;/g,"&");
   for(const en of entries){
     if(!/\.(xml|rels)$/i.test(en.name)) continue;
@@ -128,7 +151,7 @@ async function anonymizeDocx(buf,pairs){
       for(const m of matchers){m.re.lastIndex=0; if(m.re.test(hay)) throw new Error("v části "+en.name+" zůstal údaj ("+m.ph+"), DOCX z bezpečnosti nevytvořím");}
     }
   }
-  return {blob:zipEntries(entries),count:total};
+  return {blob:zipEntries(entries),count:total,images};
 }
 
 // text částí, které mammoth nevrací (záhlaví, zápatí, komentáře) — přidá se do vstupu,
@@ -146,6 +169,9 @@ async function docxExtraText(buf){
       const t=Array.from(p.getElementsByTagNameNS(DOCX_W,"*")).filter(x=>(body?(x.localName==="instrText"||x.localName==="delText"):/^(t|delText|instrText)$/.test(x.localName))&&nearestP(x)===p).map(x=>x.textContent).join("").trim();
       if(t&&!parts.includes(t)) parts.push(t);
     }
+    // popisky obrázků (alternativní text, název) — Word je ukládá do atributů
+    for(const tag of ["docPr","cNvPr"]) for(const d of Array.from(doc.getElementsByTagNameNS("*",tag)))
+      for(const at of ["descr","title"]){const t=(d.getAttribute(at)||"").trim(); if(t&&!parts.includes(t)) parts.push(t);}
     // texty grafů, diagramů a textových polí (DrawingML a:t)
     for(const at of Array.from(doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main","t"))){const t=at.textContent.trim(); if(t&&!parts.includes(t)) parts.push(t);}
   }

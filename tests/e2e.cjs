@@ -25,6 +25,17 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   const [dl]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const out=path.join(tmp,'z.docx'); await dl.saveAs(out);
   const raw=require('child_process').execFileSync('unzip',['-p',out]).toString('utf8');
   t('DOCX: žádný originál v souboru',!SECRETS.concat(['605 999','Petr Svoboda','Marie Svobodová']).some(s=>raw.includes(s)));
+  // obrázky a náhled → šedá plocha, popisek obrázku prohledán; vložený objekt → DOCX odmítnut
+  st=await load(path.join(F,'images.docx'));
+  const [di]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const oi=path.join(tmp,'i.docx'); await di.saveAs(oi);
+  const cp=require('child_process'), gray=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGO4CQAA2wDaZNW9eAAAAABJRU5ErkJggg==','base64');
+  t('DOCX: obrázek i náhled nahrazeny šedou plochou',['word/media/image1.png','docProps/thumbnail.jpeg'].every(n=>cp.execFileSync('unzip',['-p',oi,n]).equals(gray)));
+  t('DOCX: náhled má typ obsahu PNG',/PartName="\/docProps\/thumbnail\.jpeg" ContentType="image\/png"/.test(cp.execFileSync('unzip',['-p',oi,'\\[Content_Types].xml']).toString()));
+  t('DOCX: popisek obrázku bez jména',!/Dvořák/.test(cp.execFileSync('unzip',['-p',oi]).toString('utf8')));
+  t('DOCX s obrázky jde otevřít',cp.spawnSync('python3',['-c','import docx,sys;docx.Document(sys.argv[1])',oi]).status===0);
+  t('DOCX: hláška o nahrazených obrázcích',/Obrázky \(2\)/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
+  st=await load(path.join(F,'bad','embedded.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
+  t('DOCX s vloženým objektem: odmítnut',/vložený objekt/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
   const [z]=await Promise.all([p.waitForEvent('download',{timeout:300000}),p.setInputFiles('#anon-file',[path.join(F,'mixed.pdf'),long,path.join(F,'zaloba.docx')])]);
   const zp=path.join(tmp,'b.zip'); await z.saveAs(zp); const names=require('child_process').execFileSync('unzip',['-Z1',zp]).toString();
   t('hromadně: PDF i TXT pro ne-Word soubory, Word zůstane DOCX',/dokument-01-NEUPLNE-anonymizovano\.pdf/.test(names)&&/dokument-02-NEUPLNE-anonymizovano\.pdf/.test(names)&&/dokument-03-anonymizovano\.docx/.test(names),names);
