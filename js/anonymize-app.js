@@ -254,19 +254,96 @@ async function exportPdf(){
     doc.addFileToVFS("Inter-400.ttf",r);doc.addFont("Inter-400.ttf","Inter","normal");
     doc.addFileToVFS("Inter-700.ttf",b);doc.addFont("Inter-700.ttf","Inter","bold");
     doc.setProperties({title:"Anonymizovaný dokument",creator:"anonymizace.js.org",author:""});
-    const M=20,W=210-2*M,H=297,LH=5.2; let y=M;
-    doc.setFont("Inter","bold");doc.setFontSize(14);doc.text("Anonymizovaný dokument",M,y);y+=6;
-    doc.setFont("Inter","normal");doc.setFontSize(8.5);doc.setTextColor(110);
-    doc.text("Vytvořeno v prohlížeči na anonymizace.js.org · "+new Date().toLocaleDateString("cs-CZ")+" · před sdílením zkontrolujte",M,y);y+=5;
-    if(lastIncomplete){doc.setTextColor(200,30,30);doc.setFont("Inter","bold");
-      for(const l of doc.splitTextToSize("NEÚPLNÉ: "+(document.getElementById("anon-fst").dataset.last||"část dokumentu nebyla zpracována"),W)){doc.text(l,M,y);y+=4.2;}doc.setFont("Inter","normal");}
-    doc.setTextColor(0);doc.setFontSize(10.5);y+=3;
-    for(const para of lastAnon.replace(/\t/g,"    ").split("\n")){
-      const lines=para?doc.splitTextToSize(para,W):[""];
-      for(const l of lines){ if(y>H-M){doc.addPage();y=M;} doc.text(l,M,y); y+=LH; }
+    // vzhled jako web: Apple šedé, černé štítky značek, jemné linky
+    const INK=[29,29,31], MUT=[134,134,139], LINE=[226,226,231], SOFT=[245,245,247], RED=[215,0,21];
+    const PW=210,PH=297,M=22,W=PW-2*M,TOP=30,BOT=PH-20,FS=10.5,LH=6.1;
+    const col=c=>doc.setTextColor(c[0],c[1],c[2]);
+    const header=()=>{
+      doc.setFillColor(...INK);doc.roundedRect(M,12,5.2,5.2,1.3,1.3,"F");          // značka webu
+      doc.setFillColor(255,255,255);doc.rect(M+1.3,14.1,2.6,0.55,"F");doc.rect(M+1.3,15.2,1.8,0.55,"F");
+      doc.setFont("Inter","bold");doc.setFontSize(10);col(INK);doc.text("Anonymizace",M+7.2,16.2);
+      doc.setFont("Inter","normal");doc.setFontSize(8.5);col(MUT);doc.text(new Date().toLocaleDateString("cs-CZ"),PW-M,16.2,{align:"right"});
+      doc.setDrawColor(...LINE);doc.setLineWidth(0.2);doc.line(M,21,PW-M,21);
+    };
+    header(); let y=TOP+8;
+    // titulek a souhrn
+    doc.setFont("Inter","bold");doc.setFontSize(24);col(INK);doc.text("Anonymizovaný dokument",M,y);y+=8;
+    const types={};lastReps.forEach(x=>types[x.type]=(types[x.type]||0)+1);
+    doc.setFont("Inter","normal");doc.setFontSize(10);col(MUT);
+    doc.text(`${lastReps.length} ${lastReps.length===1?"náhrada":lastReps.length<5&&lastReps.length>0?"náhrady":"náhrad"} · zpracováno ve vašem prohlížeči, nic se neodeslalo`,M,y);y+=7;
+    // štítky s počty podle druhu
+    let x=M; doc.setFontSize(8.5);
+    for(const [t,n] of Object.entries(types)){
+      const lab=`${n} × ${TYPE_LABELS[t]||t}`, w=doc.getTextWidth(lab)+6;
+      if(x+w>PW-M){x=M;y+=7.5;}
+      doc.setFillColor(...SOFT);doc.roundedRect(x,y-4.3,w,6.2,3.1,3.1,"F");col(INK);doc.text(lab,x+3,y);x+=w+2.2;
     }
-    const n=doc.getNumberOfPages(); doc.setFontSize(8);doc.setTextColor(140);
-    for(let i=1;i<=n;i++){doc.setPage(i);doc.text(`${i} / ${n}`,210-M,H-10,{align:"right"});}
+    y+=Object.keys(types).length?9:2;
+    if(lastIncomplete){
+      const msg=doc.splitTextToSize("NEÚPLNÉ — "+(document.getElementById("anon-fst").dataset.last||"část dokumentu nebyla zpracována"),W-10);
+      const h=msg.length*4.6+6; doc.setFillColor(255,241,242);doc.roundedRect(M,y-4,W,h,2.5,2.5,"F");
+      doc.setFont("Inter","bold");doc.setFontSize(9);col(RED);msg.forEach((l,k)=>doc.text(l,M+5,y+1.6+k*4.6));y+=h+4;
+    }
+    doc.setDrawColor(...LINE);doc.line(M,y,PW-M,y);y+=9;
+    // tělo: struktura dokumentu (nadpisy, seznamy, odstavce) + značky jako tmavé štítky
+    const PHR=new RegExp(PH_RE.source,"g"), PH1=new RegExp(PH_RE.source), PH0=new RegExp("^(?:"+PH_RE.source+")");
+    const newPage=()=>{doc.addPage();header();y=TOP;};
+    // 1) bloky: řádky rozdělené uprostřed věty (typické pro text z PDF) se spojí zpět
+    const isHeading=l=>{const t=l.trim(),letters=t.replace(/[^\p{L}]/gu,"");
+      if(!t||t.length>80||/[,;]$/.test(t)) return false;
+      if(/^(Článek|Čl\.|Část|Hlava|Oddíl|Díl|Příloha)\s+[\dIVXLC]/i.test(t)) return true;
+      if(/^[IVXLC]+\.?$/.test(t)||/^\d+(\.\d+)*\.?\s+\p{Lu}{2}/u.test(t)) return true;
+      return letters.length>=4&&letters===letters.toUpperCase()&&!PH1.test(t);};
+    const LIST=/^\s*([-•–*·]|\d{1,2}[.)]|[a-zA-Z][)]|[IVX]+\))\s+/;
+    const blocks=[];
+    for(const raw of lastAnon.replace(/\t/g,"    ").split("\n")){
+      const l=raw.replace(/\s+$/,""), t=l.trim(), prev=blocks[blocks.length-1];
+      if(!t){if(prev&&prev.k!=="gap")blocks.push({k:"gap"});continue;}
+      if(isHeading(t)){blocks.push({k:"h",t});continue;}
+      // krátký řádek hned pod nadpisem článku = podnadpis („Článek II.“ → „Předmět smlouvy“)
+      if(prev&&prev.k==="h"&&t.length<=60&&!/[.,;:]$/.test(t)&&/^\p{Lu}/u.test(t)&&!LIST.test(t)){blocks.push({k:"sub",t});continue;}
+      const m=t.match(LIST);
+      if(m){blocks.push({k:"li",mark:m[1],t:t.slice(m[0].length)});continue;}
+      // pokračování věty z předchozího řádku (malé písmeno, číslo nebo značka na začátku)
+      if(prev&&(prev.k==="p"||prev.k==="li")&&!/[.!?:;)"“]$/.test(prev.t)&&(/^[\p{Ll}\d(„"]/u.test(t)||(PH0.test(t)&&prev.t.length>50))){prev.t+=" "+t;continue;}
+      blocks.push({k:"p",t});
+    }
+    // 2) sazba řádku s tokeny (slova + štítky), zalamování na šířku a odsazení
+    const runText=(txt,x0,fs,bold,color=INK)=>{
+      const parts=[];let last=0;
+      for(const m of txt.matchAll(PHR)){if(m.index>last)parts.push(...txt.slice(last,m.index).split(/(\s+)/).filter(Boolean).map(t=>({t})));parts.push({t:m[0],ph:true});last=m.index+m[0].length;}
+      if(last<txt.length)parts.push(...txt.slice(last).split(/(\s+)/).filter(Boolean).map(t=>({t})));
+      const lh=fs*0.58; let lx=x0; if(y>BOT-lh)newPage();
+      for(const p of parts){
+        doc.setFont("Inter",p.ph||bold?"bold":"normal");doc.setFontSize(p.ph?fs*0.78:fs);
+        const sp=!p.ph&&/^\s+$/.test(p.t), w=doc.getTextWidth(sp?" ":p.t)+(p.ph?3.2:0);
+        if(sp){if(lx>x0)lx+=w;continue;}
+        if(lx+w>PW-M&&lx>x0){y+=lh;lx=x0;if(y>BOT)newPage();}
+        if(w>PW-M-x0&&!p.ph){for(const l of doc.splitTextToSize(p.t,PW-M-x0)){col(color);doc.text(l,x0,y);y+=lh;if(y>BOT)newPage();}lx=x0;continue;}
+        if(p.ph){doc.setFillColor(...INK);doc.roundedRect(lx,y-fs*0.325,w,fs*0.44,1.1,1.1,"F");doc.setTextColor(255,255,255);doc.text(p.t,lx+1.6,y-0.15);}
+        else{col(color);doc.text(p.t,lx,y);}
+        lx+=w;
+      }
+      return lh;
+    };
+    // 3) vykreslení bloků
+    let prevK="";
+    for(const bl of blocks){
+      if(bl.k==="gap"){y+=2.2;prevK="gap";continue;}
+      if(bl.k==="h"){ if(prevK)y+=4.5; if(y>BOT-18)newPage(); {const h=runText(bl.t,M,prevK?12.5:15,true);y+=h+2.6;} prevK="h"; continue; }
+      if(bl.k==="sub"){ y-=0.6; {const h=runText(bl.t,M,10.5,true,MUT);y+=h+2.8;} prevK="sub"; continue; }
+      if(bl.k==="li"){ if(y>BOT-LH)newPage();
+        const mk=/^[-•–*·]$/.test(bl.mark)?"•":bl.mark;
+        doc.setFont("Inter",mk==="•"?"normal":"bold");doc.setFontSize(FS);col(MUT);doc.text(mk,M+1.5,y);
+        {const h=runText(bl.t,M+8,FS,false);y+=h+1.6;} prevK="li"; continue; }
+      if(prevK==="li")y+=1.8;
+      {const h=runText(bl.t,M,FS,false);y+=h+3.2;} prevK="p";
+    }
+    // patička na každé straně
+    const n=doc.getNumberOfPages();
+    for(let i=1;i<=n;i++){doc.setPage(i);doc.setDrawColor(...LINE);doc.line(M,PH-14,PW-M,PH-14);
+      doc.setFont("Inter","normal");doc.setFontSize(7.5);col(MUT);
+      doc.text("anonymizace.js.org · před sdílením výsledek zkontrolujte",M,PH-9.5);doc.text(`${i} / ${n}`,PW-M,PH-9.5,{align:"right"});}
     doc.save("anonymizovany-dokument.pdf");   // název souboru může obsahovat jméno → nikdy do výstupu
     fst.className=lastIncomplete?"fst err":"fst ok";fst.textContent="PDF staženo"+(lastIncomplete?" — POZOR, dokument je NEÚPLNÝ (vyznačeno i v PDF).":".");
   }catch(e){fst.className="fst err";fst.textContent="PDF se nepodařilo vytvořit: "+e.message+". Text můžete zkopírovat tlačítkem Kopírovat.";}
