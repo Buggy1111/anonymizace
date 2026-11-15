@@ -10,7 +10,7 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'anon-e2e-'));
   const long=path.join(tmp,'long.txt'); fs.writeFileSync(long,'Žalobce Jan Novák, rodné číslo 800315/1234. '+'Výplňový text bez údajů. '.repeat(26000)+'Na konci Eva Malá, eva.mala@seznam.cz.');
   const b=await chromium.launch(); const p=await b.newPage({acceptDownloads:true}); const ext=[],errs=[];
-  p.on('request',r=>{if(!/^(http:\/\/localhost|blob:|data:)/.test(r.url()))ext.push(r.url())}); p.on('pageerror',e=>errs.push(e.message));
+  const own=new URL(BASE).origin; p.on('request',r=>{const u=r.url();if(!u.startsWith(own)&&!/^(blob:|data:)/.test(u))ext.push(u)}); p.on('pageerror',e=>errs.push(e.message));
   await p.goto(BASE); await p.waitForTimeout(800);
   const load=async f=>{await p.setInputFiles('#anon-file',f);let st='';for(let i=0;i<300;i++){await p.waitForTimeout(1000);st=await p.textContent('#anon-fst');if(/načten|nepodařilo/.test(st))break;}return st;};
   const leaks=async()=>{const o=await p.textContent('#output');return SECRETS.filter(s=>o.includes(s));};
@@ -45,6 +45,31 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
     const st2=await load(path.join(F,'bad',f)); const v=await p.inputValue('#input');
     t('podvržený soubor '+f+': bezpečně odmítnut',re.test(st2)&&!/root:/.test(v),st2);
   }
+  // firmy podle právní formy + ruční skrytí výběru (myš i dotyk), přednost před vypnutou skupinou
+  await p.fill('#input','Dodavatel Baller sro dodá. Kontakt Pekárna U Lípy, PEKÁRNA U LÍPY, Klient Jan Novák.');await p.waitForTimeout(600);
+  let o=await p.textContent('#output');
+  t('firma podle právní formy → FIRMA, „Dodavatel“ zůstane',/Dodavatel FIRMA1/.test(o)&&!o.includes('Baller'),o);
+  await p.evaluate(()=>{const t=document.getElementById('input');const i=t.value.indexOf('U Lípy');t.focus();t.setSelectionRange(i,i+6);});
+  await p.dispatchEvent('#input','mouseup');await p.waitForTimeout(200);
+  t('po výběru se ukáže „Skrýt výběr“',await p.isVisible('.hide-sel'));
+  await p.click('.hide-sel');await p.waitForTimeout(400);o=await p.textContent('#output');
+  t('ručně skryté všude a v obou zápisech',!/Lípy|LÍPY/.test(o)&&(o.match(/SKRYTO1/g)||[]).length===2,o);
+  await p.click('#cats button:has-text("Osoby")');await p.waitForTimeout(300);
+  await p.evaluate(()=>{const t=document.getElementById('input');const i=t.value.indexOf('Jan Novák');t.focus();t.setSelectionRange(i,i+9);});
+  await p.dispatchEvent('#input','mouseup');await p.waitForTimeout(200);await p.click('.hide-sel');await p.waitForTimeout(400);
+  o=await p.textContent('#output');t('ruční skrytí platí i při vypnuté skupině Osoby',!o.includes('Novák'),o);
+  await p.click('#cats button:has-text("Osoby")');
+  await p.click('#custom button >> nth=0');await p.waitForTimeout(300);
+  t('křížek ručně skryté vrátí',(await p.textContent('#output')).includes('U Lípy'));
+  // dotyk (mobil): výběr ve výstupu prstem
+  const m=await b.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  await m.goto(BASE);await m.waitForTimeout(600);await m.fill('#input','Objednal Karel z firmy Kovo Lípa.');await m.waitForTimeout(500);
+  await m.evaluate(()=>{const o=document.getElementById('output');const w=document.createTreeWalker(o,NodeFilter.SHOW_TEXT);let n;while((n=w.nextNode())){const i=n.textContent.indexOf('Kovo Lípa');if(i>=0){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+9);const s=getSelection();s.removeAllRanges();s.addRange(r);break;}}});
+  await m.dispatchEvent('#output','touchend');await m.waitForTimeout(600);
+  t('mobil: po výběru prstem se ukáže „Skrýt výběr“',await m.isVisible('.hide-sel'));
+  await m.tap('.hide-sel');await m.waitForTimeout(400);
+  t('mobil: skryto',!(await m.textContent('#output')).includes('Kovo Lípa'));
+  await m.close();
   t('lokální režim: 0 externích požadavků',ext.length===0,ext.join()); t('žádné JS chyby',errs.length===0,errs.join());
   await b.close(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail?1:0);
 })();
