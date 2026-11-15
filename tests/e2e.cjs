@@ -70,6 +70,12 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   await m.tap('.hide-sel');await m.waitForTimeout(400);
   t('mobil: skryto',!(await m.textContent('#output')).includes('Kovo Lípa'));
   await m.close();
+  // Vymazat vše + Vrátit
+  await p.fill('#input','Jan Novák, RČ 800315/1234.');await p.fill('#ai-in','OSOBA1 ok');await p.waitForTimeout(400);
+  await p.click('#clear-all');await p.waitForTimeout(300);
+  t('Vymazat: vstup i odpověď AI prázdné',!(await p.inputValue('#input'))&&!(await p.inputValue('#ai-in')));
+  await p.click('#clear-all');await p.waitForTimeout(300);
+  t('Vrátit obnoví text',(await p.inputValue('#input')).includes('Jan Novák'));
   t('lokální režim: 0 externích požadavků',ext.length===0,ext.join()); t('žádné JS chyby',errs.length===0,errs.join());
   await b.close(); console.log(`\n${pass} passed, ${fail} failed`); process.exit(fail?1:0);
 })();

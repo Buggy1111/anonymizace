@@ -419,3 +419,26 @@ async function exportPdf(){
   }catch(e){fst.className="fst err";fst.textContent="PDF se nepodařilo vytvořit: "+e.message+". Text můžete zkopírovat tlačítkem Kopírovat.";}
 }
 document.getElementById("pdf-dl").addEventListener("click",exportPdf);
+
+// ── Vymazat vše (vstup, výsledek, odpověď AI, ručně skryté, stav souboru) s 6s možností vrátit ──
+(function(){
+  const btn=document.getElementById("clear-all"); if(!btn) return;
+  let saved=null, timer=null;
+  btn.addEventListener("click",function(){
+    if(saved){  // Vrátit
+      input.value=saved.text; aiIn.value=saved.ai; saved.custom.forEach((v,k)=>custom.set(k,v));
+      saved.ignored.forEach((v,k)=>ignored.set(k,v)); lastName=saved.name; lastIncomplete=saved.incomplete; lastDocx=saved.docx;
+      saved=null; clearTimeout(timer); btn.textContent="Vymazat"; btn.classList.remove("undo");
+      renderCustom(); renderIgnored(); run(); reveal(); input.focus(); return;
+    }
+    if(!input.value&&!aiIn.value) return;
+    saved={text:input.value, ai:aiIn.value, custom:new Map(custom), ignored:new Map(ignored),
+           name:lastName, incomplete:lastIncomplete, docx:lastDocx};
+    input.value=""; aiIn.value=""; custom.clear(); ignored.clear();
+    lastName=""; lastIncomplete=false; lastDocx=null;
+    const fst=document.getElementById("anon-fst"); fst.textContent=""; fst.className="fst"; delete fst.dataset.last;
+    renderCustom(); renderIgnored(); run(); reveal(); hideBtn.hidden=true;
+    btn.textContent="Vrátit"; btn.classList.add("undo");
+    timer=setTimeout(()=>{saved=null; btn.textContent="Vymazat"; btn.classList.remove("undo");},6000);
+  });
+})();
