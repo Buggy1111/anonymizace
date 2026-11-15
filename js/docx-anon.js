@@ -133,14 +133,18 @@ async function anonymizeDocx(buf,pairs){
   const entries=unzipEntries(buf).filter(en=>!en.name.endsWith("/"));
   const matchers=buildMatchers(pairs), rawMatchers=buildMatchers(pairs.map(p=>({original:xmlEsc(p.original||""),placeholder:p.placeholder})));
   // relace: vložené objekty odmítneme podle typu (ne podle jména souboru), fonty pustíme jen přes relaci font
-  const fonts=new Set();
+  // (obsah je vždy buď XML — prohledá se, obrázek — zahodí se, nebo font — jen když na něj vedou výhradně relace font)
+  const fontRef=new Map();   // část → true jen pokud všechny relace na ni jsou typu font
   for(const en of entries){ if(!/\.rels$/i.test(en.name)) continue;
-    const dir=en.name.replace(/_rels\/[^/]*$/,""), raw=dec.decode(await inflate(en));
-    for(const m of raw.matchAll(/<Relationship\b[^>]*>/g)){const type=(m[0].match(/\bType="([^"]*)"/)||[])[1]||"", target=(m[0].match(/\bTarget="([^"]*)"/)||[])[1]||"";
-      const kind=type.split("/").pop();
-      if(/^(oleObject|package|aFChunk|control|activeXControl\w*|vbaProject|embeddedFont)$/i.test(kind)) throw new Error("dokument obsahuje vložený objekt ("+kind+"), jehož obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
-      if(kind==="font"&&!/TargetMode="External"/.test(m[0])) fonts.add(target.startsWith("/")?target.slice(1):new URL(target,"http://x/"+dir).pathname.slice(1));}}
-  const emb=entries.find(en=>!DOCX_XML.test(en.name)&&!DOCX_IMAGE.test(en.name)&&!(DOCX_KEEP.test(en.name)&&fonts.has(en.name)));
+    const dir=en.name.replace(/_rels\/[^/]*$/,""), doc=new DOMParser().parseFromString(dec.decode(await inflate(en)),"application/xml");
+    if(doc.getElementsByTagName("parsererror").length) throw new Error("část "+en.name+" nejde přečíst, DOCX z bezpečnosti nevytvořím");
+    for(const r of Array.from(doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/relationships","Relationship"))){
+      const kind=(r.getAttribute("Type")||"").split("/").pop(), target=r.getAttribute("Target")||"";
+      if(/^(oleObject|package|aFChunk|control|activeXControl\w*|vbaProject)$/i.test(kind)) throw new Error("dokument obsahuje vložený objekt ("+kind+"), jehož obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
+      if(r.getAttribute("TargetMode")==="External") continue;
+      let part; try{part=decodeURIComponent(target.startsWith("/")?target.slice(1):new URL(target,"http://x/"+dir).pathname.slice(1));}catch(_){continue;}
+      fontRef.set(part,(fontRef.has(part)?fontRef.get(part):true)&&kind==="font");}}
+  const emb=entries.find(en=>!DOCX_XML.test(en.name)&&!DOCX_IMAGE.test(en.name)&&!(DOCX_KEEP.test(en.name)&&fontRef.get(en.name)===true));
   if(emb) throw new Error("dokument obsahuje vložený objekt nebo neznámou část ("+emb.name.split("/").pop()+"), jejíž obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
   let total=0, images=0; const pngParts=[];
   for(const en of entries){

@@ -17,6 +17,9 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   let st=await load(path.join(F,'mixed.pdf'));
   t('kombinované PDF: OCR jen naskenované strany',/OCR: 2\b/.test(st),st); t('kombinované PDF: prázdná strana označena NEÚPLNÉ',/NEÚPLNÉ: nepřečtené strany 3/.test(st),st);
   t('kombinované PDF: žádné úniky',!(await leaks()).length,(await leaks()).join());
+  st=await load(path.join(F,'text-and-scan.pdf'));
+  t('strana s textem i naskenovaným dokladem: obrázek přečten OCR',/OCR: 1\b/.test(st)&&/Dvo[řr]/.test(await p.inputValue('#input')),st);
+  t('strana s textem i skenem: žádné úniky',!/Dvořák|750512/.test(await p.textContent('#output')),await p.textContent('#output'));
   st=await load(path.join(F,'many.pdf'));
   t('23 naskenovaných stran: nad limit 20 označeno',/nepřečtené strany 21, 22, 23/.test(st),st); t('23 stran: žádné úniky',!(await leaks()).length,(await leaks()).join());
   st=await load(long);
@@ -40,6 +43,8 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   t('DOCX s neznámou částí: odmítnut',/neznámou část \(data\)/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
   st=await load(path.join(F,'bad','ole-as-font.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
   t('DOCX: OLE objekt přejmenovaný na font odmítnut',/oleObject/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
+  st=await load(path.join(F,'bad','ole-single-quotes.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
+  t('DOCX: relace v jednoduchých uvozovkách (OLE) odmítnuta',/oleObject/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
   st=await load(path.join(F,'dir-with-data.docx'));
   const [dd]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const od=path.join(tmp,'d.docx'); await dd.saveAs(od);
   t('DOCX: adresářová položka s daty vynechána',!/word\/secret/.test(cp.execFileSync('unzip',['-Z1',od]).toString()));
