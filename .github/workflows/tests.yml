@@ -1,0 +1,37 @@
+name: Testy
+
+# Engine (174), společný smyšlený korpus (68 údajů) a prohlížečové e2e (OCR po stránkách,
+# neúplné dokumenty, DOCX, ZIP, PDF export, podvržené soubory, 0 externích požadavků).
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Engine
+        run: node tests/engine.test.cjs
+      - name: Korpus
+        run: node tests/corpus.test.cjs
+      - name: Prohlížeč (Playwright)
+        run: |
+          sudo apt-get install -y -qq poppler-utils unzip >/dev/null
+          mkdir -p /tmp/pw && cd /tmp/pw && npm init -y >/dev/null && npm i --no-audit --no-fund @playwright/test@1.57.0 >/dev/null
+          npx --prefix /tmp/pw playwright install --with-deps chromium >/dev/null
+          cd "$GITHUB_WORKSPACE"
+          python3 -m http.server 8765 >/dev/null 2>&1 &
+          sleep 2
+          NODE_PATH=/tmp/pw/node_modules node tests/e2e.cjs
