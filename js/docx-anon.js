@@ -10,20 +10,28 @@ const DOCX_W="http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
 function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
 
+const DOCX_TOTAL_MAX=256*1024*1024, DOCX_ENTRIES_MAX=5000;   // součet rozbalených dat za celý dokument
 function unzipEntries(buf){
-  const u=new Uint8Array(buf), dv=new DataView(buf);
+  const u=new Uint8Array(buf), dv=new DataView(buf), bad=()=>new Error("poškozený DOCX (ZIP), nezpracuji ho");
   let e=-1;for(let i=u.length-22;i>=Math.max(0,u.length-65557);i--)if(dv.getUint32(i,true)===0x06054b50){e=i;break;}
   if(e<0) throw new Error("soubor není platný DOCX (ZIP)");
   const n=dv.getUint16(e+10,true); let p=dv.getUint32(e+16,true); const out=[];
-  const dec=new TextDecoder();
+  if(n>DOCX_ENTRIES_MAX) throw new Error("DOCX má podezřele mnoho částí ("+n+"), nezpracuji ho");
+  const dec=new TextDecoder(), budget={left:DOCX_TOTAL_MAX}, names=new Set();
+  // každý offset i délku z hlaviček ověříme proti skutečné velikosti souboru — hlavičky můžou lhát
   for(let k=0;k<n;k++){
-    if(dv.getUint32(p,true)!==0x02014b50) throw new Error("poškozený ZIP");
+    if(p+46>e||dv.getUint32(p,true)!==0x02014b50) throw bad();
     const flags=dv.getUint16(p+8,true), method=dv.getUint16(p+10,true), crc=dv.getUint32(p+16,true);
     const csize=dv.getUint32(p+20,true), usize=dv.getUint32(p+24,true);
     const nl=dv.getUint16(p+28,true), xl=dv.getUint16(p+30,true), cl=dv.getUint16(p+32,true), lo=dv.getUint32(p+42,true);
-    const nameBytes=u.slice(p+46,p+46+nl);
+    if(flags&1) throw new Error("DOCX je zašifrovaný heslem, nejdřív ho ve Wordu odemkněte");
+    if(p+46+nl>e||lo+30>u.length||dv.getUint32(lo,true)!==0x04034b50) throw bad();
+    const nameBytes=u.slice(p+46,p+46+nl), name=dec.decode(nameBytes);
+    if(names.has(name)) throw bad();   // dvě části se stejným jménem: každý čtenář by vzal jinou
+    names.add(name);
     const ds=lo+30+dv.getUint16(lo+26,true)+dv.getUint16(lo+28,true);
-    out.push({name:dec.decode(nameBytes),nameBytes,flags,method,crc,csize,usize,data:u.slice(ds,ds+csize)});
+    if(ds+csize>u.length) throw bad();
+    out.push({name,nameBytes,flags,method,crc,csize,usize,data:u.slice(ds,ds+csize),budget});
     p+=46+nl+xl+cl;
   }
   return out;
@@ -34,9 +42,12 @@ async function inflate(en){
   // ochrana proti „zip bombě": rozbalujeme po kouscích a nad limit přestaneme (hlavička může lhát)
   const rd=new Blob([en.data]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
   const parts=[]; let n=0;
-  for(;;){const {done,value}=await rd.read(); if(done) break; n+=value.length;
-    if(n>DOCX_PART_MAX){await rd.cancel(); throw new Error("část "+en.name+" je po rozbalení větší než "+(DOCX_PART_MAX>>20)+" MB");}
-    parts.push(value);}
+  try{
+    for(;;){const {done,value}=await rd.read(); if(done) break; n+=value.length;
+      if(n>DOCX_PART_MAX||(en.budget&&n>en.budget.left)){await rd.cancel(); throw new Error("Word je po rozbalení podezřele velký (možná „zip bomba“), část "+en.name+" nezpracuji");}
+      parts.push(value);}
+  }catch(err){ if(/zip bomba/.test(err.message)) throw err; throw new Error("část "+en.name+" je poškozená, DOCX nezpracuji"); }
+  if(en.budget) en.budget.left-=n;
   const out=new Uint8Array(n); let o=0; for(const p of parts){out.set(p,o);o+=p.length;} return out;
 }
 function zipEntries(entries){
@@ -108,17 +119,18 @@ function anonymizeWordXml(xml,matchers){
 const DOCX_TEXT_PARTS=/^word\/(document|header\d*|footer\d*|footnotes|endnotes|comments\w*)\.xml$/;
 // obrázky (sken, podpis, fotka OP) i náhled první stránky můžou nést osobní údaje, které
 // v nich nepřečteme → nahradíme je šedou plochou 1×1 px (Word ji roztáhne na původní rozměr)
-const DOCX_IMAGE=/^(word\/media\/[^/]*|docProps\/thumbnail)\.(png|jpe?g|jfif|gif|bmp|tiff?|emf|wmf|emz|wmz|webp|wdp|svg)$/i;
-// vložené objekty (Excel, PDF, OLE, ActiveX, altChunk HTML/RTF) neumíme prohledat → DOCX nevytvoříme
-const DOCX_EMBED=/^word\/(embeddings|activeX)\/|\.(bin|mht|mhtml|rtf|html?)$/i;
+const DOCX_IMAGE=/\.(png|jpe?g|jfif|gif|bmp|tiff?|emf|wmf|emz|wmz|webp|wdp|svg)$/i;   // v kterékoli složce
+// allowlist: XML se zpracuje, obrázky nahradí, fonty zůstanou — cokoli jiného (OLE, ActiveX, altChunk,
+// makra, neznámé soubory) neumíme prohledat → DOCX nevytvoříme
+const DOCX_KEEP=/^word\/fonts\/[^/]+\.(odttf|ttf|otf|fntdata)$/i, DOCX_XML=/\.(xml|rels)$/i;
 const GRAY_PNG=Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGO4CQAA2wDaZNW9eAAAAABJRU5ErkJggg=="),c=>c.charCodeAt(0));
 const GRAY_SVG='<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="#d9d9d9"/></svg>';
 function stored(en,b){Object.assign(en,{method:0,data:b,csize:b.length,usize:b.length,crc:crc32(b)});}
 async function anonymizeDocx(buf,pairs){
   const xmlEsc=v=>v.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const matchers=buildMatchers(pairs), rawMatchers=buildMatchers(pairs.map(p=>({original:xmlEsc(p.original||""),placeholder:p.placeholder}))), entries=unzipEntries(buf), enc=new TextEncoder(), dec=new TextDecoder();
-  const emb=entries.find(en=>DOCX_EMBED.test(en.name));
-  if(emb) throw new Error("dokument obsahuje vložený objekt ("+emb.name.split("/").pop()+"), jehož obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
+  const emb=entries.find(en=>!en.name.endsWith("/")&&!DOCX_XML.test(en.name)&&!DOCX_IMAGE.test(en.name)&&!DOCX_KEEP.test(en.name));
+  if(emb) throw new Error("dokument obsahuje vložený objekt nebo neznámou část ("+emb.name.split("/").pop()+"), jejíž obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
   let total=0, images=0; const pngParts=[];
   for(const en of entries){
     if(DOCX_IMAGE.test(en.name)){images++;

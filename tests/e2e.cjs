@@ -36,6 +36,11 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   t('DOCX: hláška o nahrazených obrázcích',/Obrázky \(2\)/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
   st=await load(path.join(F,'bad','embedded.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
   t('DOCX s vloženým objektem: odmítnut',/vložený objekt/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
+  st=await load(path.join(F,'bad','unknown-part.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
+  t('DOCX s neznámou částí: odmítnut',/neznámou část \(data\)/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
+  st=await load(path.join(F,'bad','glossary-img.docx'));
+  const [dg]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const og=path.join(tmp,'g.docx'); await dg.saveAs(og);
+  t('DOCX: obrázek i mimo word/media nahrazen',cp.execFileSync('unzip',['-p',og,'word/glossary/media/image9.jpeg']).equals(gray));
   const [z]=await Promise.all([p.waitForEvent('download',{timeout:300000}),p.setInputFiles('#anon-file',[path.join(F,'mixed.pdf'),long,path.join(F,'zaloba.docx')])]);
   const zp=path.join(tmp,'b.zip'); await z.saveAs(zp); const names=require('child_process').execFileSync('unzip',['-Z1',zp]).toString();
   t('hromadně: PDF i TXT pro ne-Word soubory, Word zůstane DOCX',/dokument-01-NEUPLNE-anonymizovano\.pdf/.test(names)&&/dokument-02-NEUPLNE-anonymizovano\.pdf/.test(names)&&/dokument-03-anonymizovano\.docx/.test(names),names);

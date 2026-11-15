@@ -26,6 +26,8 @@ jobs:
         run: node tests/engine.test.cjs
       - name: Korpus
         run: node tests/corpus.test.cjs
+      - name: ZIP (DOCX) odolnost
+        run: node tests/zip.test.cjs
       - name: Prohlížeč (Playwright)
         run: |
           sudo apt-get install -y -qq poppler-utils unzip >/dev/null
