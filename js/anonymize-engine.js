@@ -16,7 +16,7 @@ const FIRST_NAMES = new Set(["jan","jana","petr","petra","josef","marie","martin
 // ⚠️ vědomý kompromis (review #10): "Most"/"Opava"/"Odry" kolidují s apelativy —
 // u slovníku bez kontextu nerozlišitelné; chybujeme směrem k redakci (FP ≠ leak),
 // reálné dokumenty řeší NER mód.
-const CITIES = new Set(["praha","praze","prahy","prahou","prahu","brno","brně","brna","brnu","ostrava","ostravě","ostravy","ostravu","ostravou",
+const CITIES = new Set(["bratislava","bratislave","bratislavy","bratislavu","košice","košiciach","prešov","prešove","žilina","žiline","nitra","nitre","trnava","trnave","trenčín","trenčíne","poprad","poprade","martin","banská bystrica","banskej bystrici","praha","praze","prahy","prahou","prahu","brno","brně","brna","brnu","ostrava","ostravě","ostravy","ostravu","ostravou",
   "plzeň","plzen","plzni","plzně","olomouc","olomouci","olomouce","liberec","liberci","liberce","hradec","hradci","pardubice","pardubic","pardubicích",
   "zlín","zlin","zlíně","zlína","kladno","kladně","kladna","most","mostě","mostu","opava","opavě","opavy","karviná","karvina","karviné","karvinou",
   "jihlava","jihlavě","jihlavy","přerov","prerov","přerově","přerova","studénka","studenka","studénce","studénky","kopřivnice","koprivnice","kopřivnici",
@@ -235,6 +235,11 @@ function anonymize(text,nerEnts){
   // město, nepatří do jména ("Petr Veškeré Náležitosti"); 2. slovo za jménem bereme
   // jen s příjmenní koncovkou ("Barbora Vidová Hladká" ano, ale "Jan Novák Veškeré" ne).
   const ROLE=new Set(["žalobce","žalobkyně","žalovaný","žalovaná","pan","paní","pacient","pacientka","kupující","prodávající","účastník","účastnice","svědek","svědkyně","obviněný","obviněná","dlužník","dlužnice","věřitel","věřitelka","zaměstnanec","zaměstnankyně","nájemce","pronajímatel","jméno","příjmení","dne","podepsal","podepsala","zástupce","advokát","advokátka","soudce","soudkyně","lékař","lékařka","ošetřující","student","studentka","žák","žákyně","klient","klientka"]);
+  const SURADJ=new Set(["malý","malá","nový","nová","velký","velká","mladý","mladá","dlouhý","dlouhá","dobrý","dobrá","černý","černá","bílý","bílá","veselý","veselá","starý","stará","krátký","krátká","hrubý","hrubá","šťastný","šťastná","tichý","tichá","rychlý","rychlá","zelený","zelená","malé","nové"]);
+  const CAPSSTOP=new Set(["republika","republiky","soud","soudu","smlouva","smlouvy","článek","faktura","příloha","odběratel","dodavatel","jméno","příjmení","adresa","poznámka","věc","usnesení","rozsudek","žaloba","výzva","oznámení","rozhodnutí","plná","moc","zpráva","výpis","celkem","podpis","datum","strana","stran","kupující","prodávající","pronajímatel","nájemce","zaměstnanec","zaměstnavatel","pacient","pacientka","žalobce","žalovaný","žalovaná","dlužník","věřitel","svědek","advokát","notář","exekutor","úřad","město","obec","kraj","ministerstvo","policie","nemocnice","škola","banka"]);
+  // příjmení VELKÝMI před křestním („NOVÁK Jan“, „SVOBODOVÁ Marie“) — formuláře, seznamy
+  const CAPS_RE=new RegExp("(?<![\\p{L}])(\\p{Lu}{3,}(?:-\\p{Lu}{3,})?)\\s+((?:"+NAMEALT+"))(?![\\p{L}])","gu");
+  out=out.replace(CAPS_RE,(m,sur,first)=>{const w=sur.toLowerCase();return (ROLE.has(w)||NOTNAME.has(w)||CITIES.has(w)||CAPSSTOP.has(w)||/^(PSČ|IČO|DIČ|OSOBA|MESTO|ULICE|FIRMA)/.test(sur))?m:assign(m,"OSOBA","osoba");});
   const REV_RE=new RegExp("(?<![\\p{L}])(\\p{Lu}[\\p{Ll}]+)\\s+((?:"+NAMEALT+"))(?![\\p{L}])(?=\\s*,)","gu");
   out=out.replace(REV_RE,(m,sur,first)=>{const w=sur.toLowerCase();return (ROLE.has(w)||NOTNAME.has(w)||CITIES.has(w)||FIRST_NAMES.has(w))?m:assign(m,"OSOBA","osoba");});
   out=out.replace(DICT_RE,m=>{
@@ -245,6 +250,8 @@ function anonymize(text,nerEnts){
       const w=t[2].toLowerCase();
       const head=kept.slice(0,kept.length-t[1].length-t[2].length);
       const isSecondTrailing=/\s/.test(head.trim());
+      // přídavné jméno hned za křestním je u nás běžné příjmení (Ondřej Malý, Eva Malá, Radek Veselý)
+      if(!isSecondTrailing&&SURADJ.has(w)) break;
       if(NOTNAME.has(w)||CITIES.has(w)||(isSecondTrailing&&!SUR_END.test(t[2]))){ rest=t[1]+t[2]+rest; kept=head; }
       else break;
     }
@@ -270,13 +277,22 @@ function anonymize(text,nerEnts){
     if(CITIES.has(w)) return assign(m,"MESTO","město/obec");
     return m;
   });
-  const seenOrig=new Set();
-  for(const r of [...reps].sort((a,b)=>b.original.length-a.original.length)){
-    // u částky i samotné číslo („12 345 Kč“ → skryje i holé „12 345“ v součtech)
+  // propagace: originál nalezený jednou se skryje i jinde v textu (u částky i holé číslo).
+  // Jeden průchod textem: kandidáti se hledají přes rychlý předvýběr (nejdelší slovo originálu musí v textu ještě být)
+  // a pak jedním spojeným regexem — dřív regex na každý originál zvlášť = kvadratický čas.
+  const ws=x=>x.replace(/\s+/g," ");
+  const map=new Map(), SPLIT=/[^\p{L}\p{N}]+/u, toks=new Set(out.split(SPLIT));   // slova textu jednou → O(1) dotaz
+  for(const r of reps){
     const cands=[r.original]; if(r.type==="CASTKA"){const num=(r.original.match(/\d[\d \u00a0.,]*\d/)||[""])[0]; if(num.replace(/\D/g,"").length>=4) cands.push(num);}
-    for(const o of cands){ if(o.length<4||seenOrig.has(o)) continue; seenOrig.add(o);
-    const re=new RegExp("(?<![\\p{L}\\p{N}])"+o.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+")+"(?![\\p{L}\\p{N}])","gu");
-    out=out.replace(re,r.placeholder); }
+    for(const o of cands){ const k=ws(o.trim()); if(k.length<4||map.has(k)) continue;
+      const piece=k.split(SPLIT).sort((a,b)=>b.length-a.length)[0];
+      if(!piece||!toks.has(piece)) continue;        // v textu už nikde není → nic k propagaci
+      map.set(k,r.placeholder); }
+  }
+  if(map.size){
+    const alts=[...map.keys()].sort((a,b)=>b.length-a.length).map(k=>k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/ /g,"\\s+"));
+    const re=new RegExp("(?<![\\p{L}\\p{N}])(?:"+alts.join("|")+")(?![\\p{L}\\p{N}])","gu");
+    out=out.replace(re,m=>map.get(ws(m))||m);
   }
   return {anonymized:out,replacements:reps};
 }
@@ -303,7 +319,24 @@ function nerCategory(type){
   if(c==="T"||c==="t") return ["DATUM","datum"];
   return null;                                 // čísla (n*), média (m*), artefakty (o*) … neřešíme
 }
+// dlouhý text se posílá po částech (~15 000 znaků, řez na konci řádku/věty) — entity se
+// sloučí a anonymize() pak běží nad celým textem najednou, takže značky zůstanou konzistentní
+const NER_CHUNK=15000;
+function nerChunks(text){
+  const out=[]; let i=0;
+  while(i<text.length){
+    let end=Math.min(text.length,i+NER_CHUNK);
+    if(end<text.length){const w=text.slice(i,end); const cut=Math.max(w.lastIndexOf("\n"),w.lastIndexOf(". ")); if(cut>NER_CHUNK/2) end=i+cut+1;}
+    out.push(text.slice(i,end)); i=end;
+  }
+  return out;
+}
 async function fetchNER(text){
+  const ents=[];
+  for(const part of nerChunks(text)) ents.push(...await fetchNERPart(part));
+  return ents;
+}
+async function fetchNERPart(text){
   const r=await apiPost(NER_API_BASE+"/nametag/api/recognize",{data:text,output:"conll"});
   const d=await r.json();
   const ents=[];

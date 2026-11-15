@@ -23,7 +23,9 @@ Doprovodný web k MCP serveru [anonymize-mcp](https://github.com/Buggy1111/anony
 
 ### Testy
 
-`tools/test-overredaction.cjs` (lokální, gitignorované) — 172 případů: díry, přetažení, reálné vzory dokumentů (jen smyšlené hodnoty) a ReDoS (data, verze, „Smlouva o dílo“ zůstávají).
+`tests/engine.test.cjs` (`node tests/engine.test.cjs`) — 174 případů: díry, přetažení, reálné vzory dokumentů (jen smyšlené hodnoty) a ReDoS (data, verze, „Smlouva o dílo“ zůstávají).
+`tests/e2e.cjs` — testy v prohlížeči na smyšlených souborech z `tests/fixtures/` (OCR po stránkách, neúplné dokumenty, DOCX, ZIP, 0 externích požadavků).
+`tests/corpus.test.cjs` — společný smyšlený korpus (12 dokumentů, 68 údajů; stejný soubor má i anonymize-mcp), měří úniky a přetažení.
 - **NER** — rozpoznávání pojmenovaných entit (NameTag 3).
 - **Morfologie** — lemma, slovní druh, mluvnické kategorie (UDPipe 2).
 - **Korektor** — oprava překlepů a diakritiky (Korektor).
@@ -57,8 +59,9 @@ csp-hashes.mjs      — po úpravě JSON-LD spusť `node csp-hashes.mjs` (přepo
 ## Jak to funguje
 
 Texty jdou **přímo z prohlížeče** na veřejné akademické API ÚFAL LINDAT
-(`https://lindat.mff.cuni.cz/services`). **Žádný vlastní backend, žádný API klíč,
-nic se neukládá.** Anonymizér navíc nabízí plně offline lokální mód, kde text
+(`https://lindat.mff.cuni.cz/services`). **Žádný vlastní backend, žádný API klíč;
+web sám nic neukládá.** Podmínky ÚFAL ale dovolují zaslaná data použít ke zlepšení
+jejich služeb — proto citlivé texty jen v lokálním režimu. Anonymizér navíc nabízí plně offline lokální mód, kde text
 prohlížeč vůbec neopustí. Limit 20 000 znaků na požadavek.
 
 ## Vývoj

@@ -14,10 +14,11 @@ function wireUploads(){
       if(st){st.className="status";st.textContent="Načítám "+f.name+"…";}
       try{
         if(f.size>10*1024*1024) throw new Error("soubor je moc velký (max 10 MB)");
-        const txt=await extractText(f,msg=>{if(st){st.className="status";st.textContent=msg;}});
-        ta.value=txt.slice(0,20000);
+        const info={}; const txt=await extractText(f,msg=>{if(st){st.className="status";st.textContent=msg;}},info);
+        ta.value=txt.slice(0,MAX_CHARS);
         ta.dispatchEvent(new Event("input"));
-        if(st){st.className="status ok";st.textContent=f.name+" načten ("+ta.value.length.toLocaleString("cs-CZ")+" znaků)";}
+        const d=describeExtract(f.name,txt.length,info,MAX_CHARS);
+        if(st){st.className=d.incomplete?"status err":"status ok";st.textContent=d.text;}
       }catch(e){ if(st){st.className="status err";st.textContent="Soubor se nepodařilo načíst: "+e.message;} }
       inp.value="";
     });
