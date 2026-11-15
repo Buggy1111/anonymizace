@@ -58,6 +58,12 @@ img{max-width:100%}
 .theme svg{width:12px;height:12px}
 .open{font-size:12px;text-decoration:none;padding:4px 11px;border-radius:999px;background:var(--blue);color:#fff;transition:background .2s;white-space:nowrap}
 .open:hover{background:var(--blue-h)}
+.menu{all:unset;display:none;cursor:pointer;width:36px;height:36px;margin-right:-8px;position:relative;border-radius:8px}
+.menu span{position:absolute;left:10px;right:10px;height:1.5px;background:var(--fg);border-radius:2px;transition:transform .3s cubic-bezier(.2,.8,.2,1),top .3s}
+.menu span:first-child{top:14px}.menu span:last-child{top:21px}
+.menu[aria-expanded="true"] span:first-child{top:17.5px;transform:rotate(45deg)}
+.menu[aria-expanded="true"] span:last-child{top:17.5px;transform:rotate(-45deg)}
+.menu:focus-visible{outline:2px solid var(--blue)}
 
 /* ── tlačítka, odkazy, přepínače ── */
 .btn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-size:17px;line-height:1.2;padding:11px 22px;border-radius:999px;background:var(--blue);color:#fff;transition:background .2s;text-decoration:none}
@@ -158,7 +164,16 @@ textarea{width:100%;border:0;background:transparent;resize:vertical;outline:none
 .f-bottom{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;padding-top:16px;border-top:1px solid var(--line)}
 
 @media (max-width:760px){
-  .links,.open{display:none}
+  .open{display:none}
+  .menu{display:block}
+  /* mobilní menu: panel pod lištou, velké dotykové plochy */
+  .links{position:fixed;left:0;right:0;top:calc(48px + env(safe-area-inset-top,0px));flex-direction:column;gap:0;padding:6px 20px 18px;
+    background:var(--bg);box-shadow:0 18px 40px -20px rgba(0,0,0,.35);
+    border-bottom:1px solid var(--line);opacity:0;visibility:hidden;transform:translateY(-8px);transition:opacity .25s,transform .3s cubic-bezier(.2,.8,.2,1),visibility .25s}
+  .site-nav.open-menu{background:var(--bg)}
+  .site-nav.open-menu .links{opacity:1;visibility:visible;transform:none}
+  .links a{font-size:22px;font-weight:600;letter-spacing:-.02em;padding:12px 0;opacity:1;border-bottom:1px solid var(--line)}
+  .links a:last-child{border-bottom:0}
   .f-cols{grid-template-columns:1fr 1fr}
   .page-head{padding-block:96px 28px}
   .panes{grid-template-columns:1fr}

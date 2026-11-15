@@ -92,3 +92,14 @@
     items.forEach(el=>{ const r=el.getBoundingClientRect(); if(r.top>innerHeight) io.observe(el); });
   }
 })();
+
+// ── mobilní menu (hamburger) ──
+(function(){
+  const nav=document.querySelector(".site-nav"), btn=nav&&nav.querySelector(".menu"); if(!btn) return;
+  const set=open=>{nav.classList.toggle("open-menu",open);btn.setAttribute("aria-expanded",String(open));btn.setAttribute("aria-label",open?"Zavřít menu":"Menu");};
+  btn.addEventListener("click",()=>set(btn.getAttribute("aria-expanded")!=="true"));
+  nav.querySelectorAll(".links a").forEach(a=>a.addEventListener("click",()=>set(false)));
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")set(false);});
+  document.addEventListener("click",e=>{if(!nav.contains(e.target))set(false);});
+  matchMedia("(min-width:761px)").addEventListener("change",()=>set(false));
+})();
