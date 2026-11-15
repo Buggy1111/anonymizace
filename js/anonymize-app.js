@@ -119,12 +119,18 @@ function showHide(ev){
   const t=selectedText().replace(/\s+/g," ").trim();
   if(t.length<2||t.length>120||!/[\p{L}\p{N}]/u.test(t)||custom.has(t.toLowerCase())){hideBtn.hidden=true;return;}
   pendingSel=t;
-  let x=ev&&ev.clientX, y=ev&&ev.clientY;
+  // Dotyk: systémová nabídka (Kopírovat, Vyhledat…) bývá u výběru → tlačítko dáme NAD slovo
+  // a dál od něj; na počítači pod výběr. Když nahoře není místo, jde pod.
+  const touch=matchMedia("(pointer: coarse)").matches;
+  let x=ev&&ev.clientX, top=ev&&ev.clientY, bottom=top;
   const sel=window.getSelection();
-  if(sel&&sel.rangeCount&&output.contains(sel.anchorNode)){const r=sel.getRangeAt(0).getBoundingClientRect();x=r.left+r.width/2;y=r.bottom;}
-  if(x==null){const r=input.getBoundingClientRect();x=r.left+r.width/2;y=r.top+40;}
+  if(sel&&sel.rangeCount&&output.contains(sel.anchorNode)){const r=sel.getRangeAt(0).getBoundingClientRect();x=r.left+r.width/2;top=r.top;bottom=r.bottom;}
+  if(x==null){const r=input.getBoundingClientRect();x=r.left+r.width/2;top=r.top+40;bottom=top;}
+  const h=40, gap=touch?58:10;
+  let y=touch?top-gap-h:bottom+gap;
+  if(touch&&y<56) y=bottom+gap+40;            // nahoře málo místa (lišta) → pod výběr, pod nabídku
   hideBtn.style.left=Math.max(8,Math.min(innerWidth-140,x-60))+"px";
-  hideBtn.style.top=Math.min(innerHeight-48,y+10)+"px";
+  hideBtn.style.top=Math.max(56,Math.min(innerHeight-48,y))+"px";
   hideBtn.hidden=false;
 }
 for(const el of [input,output]){
