@@ -146,9 +146,16 @@ const STRUCT = [
   {key:"ICO",     label:"IČO",            re:/(?<!\d )\b\d{2} \d{3} \d{3}\b(?! ?\d)/g, valid:v=>validICO(v.replace(/ /g,""))},  // SK zápis „12 345 679“        // mod-11 (ceny/kódy bez platné kontrolní číslice propadnou)
 ];
 
+// Právní formy firem (CZ/SK/DE/EN). Vyžaduje se tečkovaný tvar nebo samostatné slovo („sro“, „GmbH“).
+const COMPANY_FORMS="(?:spol\\.\\s?s\\s?r\\.\\s?o\\.|s\\.\\s?r\\.\\s?o\\.|sro|a\\.\\s?s\\.|v\\.\\s?o\\.\\s?s\\.|k\\.\\s?s\\.|z\\.\\s?s\\.|o\\.\\s?p\\.\\s?s\\.|z\\.\\s?ú\\.|s\\.\\s?p\\.|družstvo|GmbH|AG|SE|Ltd\\.?|LLC|Inc\\.?|s\\.\\s?r\\.\\s?l\\.|Sp\\.\\s?z\\s?o\\.\\s?o\\.)";
+const COMPANY_FORM=new RegExp("(?:,?\\s)"+COMPANY_FORMS+"(?![\\p{L}\\d])","u");
+// délky slov omezené ({0,40}) — jinak by dlouhé „1-1-1-…“ dalo kvadratický čas (ReDoS test)
+const COMPANY_RE=new RegExp("(?<![\\p{L}\\d.-])((?:[\\p{Lu}\\d][\\p{L}\\d&'’.-]{0,40})(?:\\s+(?:[\\p{Lu}\\d][\\p{L}\\d&'’.-]{0,40}|\\p{Ll}{4,40}|&|a|und|and)){0,4}?)(,?\\s"+COMPANY_FORMS+")(?![\\p{L}\\d])","gu");
+const COMPANY_LEAD=new Set(["dodavatel","odběratel","zhotovitel","objednatel","firma","společnost","spol","kupující","prodávající","pronajímatel","nájemce","zaměstnavatel","věřitel","dlužník","plátce","příjemce","klient","partner","pojistitel","banka","výrobce","provozovatel","správce","investor","subdodavatel","smluvní","strana","mezi","a","firmou","společností","dodavatele","odběratele","pro","od","u","v","ve","s","se","z","ze","k","ke","na","do"]);
+
 // placeholdery jsou VELKÝMI písmeny + číslo (OSOBA1) → názvové/strukturní
 // regexy je znovu nematchnou, takže žádné sentinely nejsou potřeba.
-function anonymize(text,nerEnts){
+function anonymize(text,nerEnts,custom){
   const reps=[]; const counters={}; const registry=new Map();
   function assign(orig,key,label){
     const k=key+"::"+orig.toLowerCase().replace(/\s+/g," ").trim();
@@ -160,6 +167,13 @@ function anonymize(text,nerEnts){
     return plc;
   }
   let out=text;
+  // Ručně označené (uživatel myší vybral, co anonymizér nechal) — nejdřív, delší první, všude v textu.
+  if(custom&&custom.length){
+    for(const c of [...new Set(custom.map(x=>x.trim()).filter(x=>x.length>=2))].sort((a,b)=>b.length-a.length)){
+      const re=new RegExp("(?<![\\p{L}\\p{N}])"+c.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+")+"(?![\\p{L}\\p{N}])","giu");
+      out=out.replace(re,m=>assign(m,COMPANY_FORM.test(m)?"FIRMA":"SKRYTO",COMPANY_FORM.test(m)?"firma":"ručně skryto"));
+    }
+  }
   // STRUCT: u položek s `cap` redigujeme jen zachycenou hodnotu (kontext zůstává).
   for(const item of STRUCT) out=out.replace(item.re,(m,...g)=>{
     const val=item.cap?g[item.cap-1]:m;
@@ -178,6 +192,16 @@ function anonymize(text,nerEnts){
   // po NER: číslo popisné/orientační hned za placeholderem místa/ulice — ulici NER
   // nahradil, ale číslo domu zůstalo ("MESTO1 1428/9" → "MESTO1 CP1").
   out=out.replace(/((?:MESTO|ULICE)\d+\s+)(\d{1,4}\/\d{1,3})\b/g,(m,pre,num)=>pre+assign(num,"CP","č. popisné"));
+  // Firma podle právní formy („Baller s.r.o.“, „Baller sro“, „ABC Group spol. s r.o.“, „Müller GmbH“):
+  // 1–4 slova s velkým písmenem/číslicí před formou; úvodní role („Dodavatel“, „Firma“) do názvu nepatří.
+  out=out.replace(COMPANY_RE,(m,name,form)=>{
+    if(!/\p{L}{2}/u.test(name)) return m;          // „článek 5 a.s.“ — číslo není název firmy
+    const words=name.split(/\s+/); let lead="";
+    while(words.length>1&&COMPANY_LEAD.has(words[0].toLowerCase().replace(/[:,]$/,""))){lead+=words.shift()+" ";}
+    if(words.length===1&&COMPANY_LEAD.has(words[0].toLowerCase())) return m;
+    const firm=words.join(" ")+form;
+    return lead+assign(firm.replace(/\s+/g," ").trim(),"FIRMA","firma");
+  });
   // jméno za akademickým titulem („JUDr. Richardem Novákem", „Ing. Mgr. Petr Svoboda") — i v 7. pádě
   out=out.replace(/((?:\b(?:JUDr|MUDr|MDDr|MVDr|PhDr|RNDr|PaedDr|ThDr|PharmDr|Ing|Mgr|Bc|Dr|doc|prof)\.\s?)+)(\p{Lu}[\p{Ll}]+(?:[ \t]+\p{Lu}[\p{Ll}]+){0,3})/gu,
     (m,title,name)=>title+assign(name,"OSOBA","osoba"));
@@ -351,8 +375,8 @@ async function fetchNERPart(text){
 const NER_STOP=new Set(["osvč","čr","sr","eu","osa","čsú","npú","por","npor","kpt","mjr","plk","gen","pprap","prap","mudr","judr","ing","mgr","bc","phdr","rndr","csc"]);
 
 // labely drženy v souladu se STRUCT.label (review #19) — NER typy (OSOBA/FIRMA/…) navíc
-const TYPE_LABELS={OSOBA:"osoba",FIRMA:"firma",INSTITUCE:"instituce",MESTO:"místo",ULICE:"ulice",CP:"č. popisné",PSC:"PSČ",TELEFON:"telefon",EMAIL:"email",
+const TYPE_LABELS={SKRYTO:"ručně skryto",OSOBA:"osoba",FIRMA:"firma",INSTITUCE:"instituce",MESTO:"místo",ULICE:"ulice",CP:"č. popisné",PSC:"PSČ",TELEFON:"telefon",EMAIL:"email",
   URL:"URL",RC:"rodné číslo",ICO:"IČO",DIC:"DIČ",IBAN:"IBAN",UCET:"číslo účtu",SPZN:"spisová značka",DATUM:"datum",
   DSCHRANKA:"datová schránka",VIN:"VIN",DOKID:"číslo dokumentu",COP:"číslo OP",MKN:"diagnóza (MKN)",
   KRYPTO:"krypto adresa",TOKEN:"API token",KARTA:"platební karta",SSN:"US SSN",SPZ:"SPZ",CASTKA:"částka",IP:"IP adresa",PAS:"číslo pasu",RP:"řidičský průkaz",ICP:"IČP/IČZ"};
-const PH_RE=/\b(?:OSOBA|FIRMA|INSTITUCE|MESTO|ULICE|CP|PSC|TELEFON|EMAIL|URL|RC|ICO|DIC|IBAN|UCET|SPZN|DATUM|DSCHRANKA|VIN|DOKID|COP|MKN|KRYPTO|TOKEN|KARTA|SSN|SPZ|CASTKA|IP|PAS|RP|ICP)\d+\b/g;
+const PH_RE=/\b(?:SKRYTO|OSOBA|FIRMA|INSTITUCE|MESTO|ULICE|CP|PSC|TELEFON|EMAIL|URL|RC|ICO|DIC|IBAN|UCET|SPZN|DATUM|DSCHRANKA|VIN|DOKID|COP|MKN|KRYPTO|TOKEN|KARTA|SSN|SPZ|CASTKA|IP|PAS|RP|ICP)\d+\b/g;

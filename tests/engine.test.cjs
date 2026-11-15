@@ -213,6 +213,19 @@ console.log("Vzorek reálné pošty (výplatnice, SK úřady, OCR) — 14. 11. 2
 { const r=anon("Účet\n\n1234567890/0800"); t("účet v tabulce bez kontextu",!r.anonymized.includes("1234567890"),r.anonymized);
   const k=anon("Dlužná částka"); t("„Dlužná“ není osoba",k.anonymized.includes("Dlužná"),k.anonymized); }
 
+console.log("Firmy podle právní formy a ručně skryté (15. 11. 2026)");
+{
+  const L=(txt,v)=>{const r=anon(txt);t(`'${txt}' skryje '${v}'`,!r.anonymized.includes(v),r.anonymized);};
+  const keep=(txt,v)=>{const r=anon(txt);t(`'${txt}' nechá '${v}'`,r.anonymized.includes(v),r.anonymized);};
+  L("Dodavatel Baller sro, IČO 12345679.","Baller"); L("Stavby Baller s.r.o. a Novák a.s.","Baller"); L("firma ABC Group spol. s r.o.","ABC");
+  L("Česká spořitelna, a.s. vede účet","spořitelna"); L("Müller GmbH dodá","Müller"); L("pracuji v Baller s. r. o.","Baller");
+  keep("Dodavatel Baller sro","Dodavatel"); keep("viz článek 5 a.s. ne","článek 5"); keep("Smlouva o dílo s.r.o. ne","Smlouva o dílo");
+  const r=anonymize("Petr pracuje u Pekárna U Lípy a u pekárna u lípy.",null,["Pekárna U Lípy"]);
+  t("ručně skryté všude a bez ohledu na velká písmena",!/Lípy|lípy/.test(r.anonymized)&&/SKRYTO1.*SKRYTO1/.test(r.anonymized),r.anonymized);
+  const f=anonymize("Odběratel Baller, s.r.o. a Baller, s.r.o.",null,["Baller, s.r.o."]);
+  t("ručně skrytá firma dostane značku FIRMA",/FIRMA1/.test(f.anonymized)&&!/SKRYTO/.test(f.anonymized),f.anonymized);
+}
+
 console.log("ReDoS — 20 000 znaků nepříjemného vstupu do 300 ms (audit 14. 11. 2026)");
 {
   const N=20000, rep=s=>s.repeat(Math.ceil(N/s.length)).slice(0,N);

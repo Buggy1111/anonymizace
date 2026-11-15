@@ -7,6 +7,8 @@ const input=document.getElementById("input"), output=document.getElementById("ou
 const tableEl=document.getElementById("table"), statsEl=document.getElementById("stats");
 const repcount=document.getElementById("repcount"), incount=document.getElementById("incount");
 const nerinfo=document.getElementById("nerinfo");
+const custom=new Map();   // ručně skryté (malá písmena → původní zápis)
+const customEl=document.getElementById("custom");
 const ignEl=document.getElementById("ignored"), catsEl=document.getElementById("cats"), docxBtn=document.getElementById("docx-dl");
 
 function clear(el){while(el.firstChild)el.removeChild(el.firstChild);}
@@ -21,7 +23,7 @@ const CATS=[
 const offTypes=new Set(), ignored=new Map();   // malá písmena → původní zápis
 try{(JSON.parse(localStorage.getItem("anon-off")||"[]")).forEach(t=>offTypes.add(t));}catch(_){}
 function anon(text,ents){
-  const r=anonymize(text,ents);
+  const r=anonymize(text,ents,[...custom.values()]);
   const keep=[], back=new Map();
   for(const x of r.replacements){
     if(offTypes.has(x.type)||ignored.has(x.original.toLowerCase())) back.set(x.placeholder,x.original); else keep.push(x);
@@ -93,6 +95,51 @@ function render(anonymized,replacements){
   });
   table.appendChild(tbody);tableEl.appendChild(table);
 }
+function renderCustom(){
+  clear(customEl); if(!custom.size){customEl.hidden=true;return;} customEl.hidden=false;
+  customEl.appendChild(span("ign-h","Ručně skryto:"));
+  custom.forEach((o,key)=>{const b=document.createElement("button");b.type="button";b.className="chip ign";b.textContent=o+" ✕";b.title="Vrátit do textu";
+    b.onclick=()=>{custom.delete(key);renderCustom();rerender();};customEl.appendChild(b);});
+}
+// ── ruční skrytí: výběr myší (nebo prstem) ve vstupu i výstupu → tlačítko „Skrýt“ ──
+const hideBtn=document.createElement("button");
+hideBtn.type="button";hideBtn.className="hide-sel";hideBtn.textContent="Skrýt výběr";hideBtn.hidden=true;
+document.body.appendChild(hideBtn);
+let pendingSel="";
+function selectedText(){
+  if(document.activeElement===input&&input.selectionEnd>input.selectionStart)
+    return input.value.slice(input.selectionStart,input.selectionEnd);
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount&&output.contains(sel.anchorNode)&&output.contains(sel.focusNode))
+    return sel.toString().replace(new RegExp(PH_RE.source,"g"),t=>lastMap.get(t)||t);  // značky zpět na originál
+  return "";
+}
+function showHide(ev){
+  const t=selectedText().replace(/\s+/g," ").trim();
+  if(t.length<2||t.length>120||!/[\p{L}\p{N}]/u.test(t)||custom.has(t.toLowerCase())){hideBtn.hidden=true;return;}
+  pendingSel=t;
+  let x=ev&&ev.clientX, y=ev&&ev.clientY;
+  const sel=window.getSelection();
+  if(sel&&sel.rangeCount&&output.contains(sel.anchorNode)){const r=sel.getRangeAt(0).getBoundingClientRect();x=r.left+r.width/2;y=r.bottom;}
+  if(x==null){const r=input.getBoundingClientRect();x=r.left+r.width/2;y=r.top+40;}
+  hideBtn.style.left=Math.max(8,Math.min(innerWidth-140,x-60))+"px";
+  hideBtn.style.top=Math.min(innerHeight-48,y+10)+"px";
+  hideBtn.hidden=false;
+}
+for(const el of [input,output]){
+  el.addEventListener("mouseup",e=>setTimeout(()=>showHide(e),0));
+  el.addEventListener("touchend",()=>setTimeout(()=>showHide(null),350));
+  el.addEventListener("keyup",e=>{if(e.shiftKey)showHide(null);});
+}
+document.addEventListener("selectionchange",()=>{if(!selectedText())hideBtn.hidden=true;});
+window.addEventListener("scroll",()=>{hideBtn.hidden=true;},{passive:true});
+hideBtn.addEventListener("mousedown",e=>e.preventDefault());   // nezrušit výběr před kliknutím
+hideBtn.addEventListener("click",()=>{
+  if(!pendingSel)return;
+  custom.set(pendingSel.toLowerCase(),pendingSel); hideBtn.hidden=true;
+  const s=window.getSelection(); if(s)s.removeAllRanges();
+  renderCustom(); rerender();
+});
 function renderIgnored(){
   clear(ignEl); if(!ignored.size){ignEl.hidden=true;return;} ignEl.hidden=false;
   ignEl.appendChild(span("ign-h","Vráceno do textu:"));
@@ -157,7 +204,7 @@ document.getElementById("copy").onclick=function(){
   if(navigator.clipboard) navigator.clipboard.writeText(lastAnon).then(()=>done(lastIncomplete?"Zkopírováno — POZOR, dokument je NEÚPLNÝ":"Zkopírováno"),()=>done("Kopírování se nepovedlo"));
   else done("Kopírování se nepovedlo");
 };
-input.addEventListener("input",()=>{if(!input.value){lastIncomplete=false;lastName="";lastDocx=null;}run();});
+input.addEventListener("input",()=>{if(!input.value){lastIncomplete=false;lastName="";lastDocx=null;custom.clear();renderCustom();}run();});
 document.querySelectorAll('input[name="mode"]').forEach(r=>r.addEventListener("change",run));
 // klik/Enter na značku ve výstupu = falešný nález → vrátit
 function unredact(e){const t=e.target.closest&&e.target.closest(".ph-tok[data-ph]");if(!t)return;
