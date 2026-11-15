@@ -228,13 +228,20 @@ async function batch(files,fst){
       const r=anon(txt.slice(0,BATCH_MAX));
       const tag=d.incomplete?"-NEUPLNE":"";
       if(isDocx){const {blob}=await anonymizeDocx(buf,r.replacements);add(uniq(base+"-anonymizovano.docx"),new Uint8Array(await blob.arrayBuffer()));}
-      else add(uniq(base+tag+"-anonymizovano.txt"),enc.encode((d.incomplete?"!!! NEÚPLNÉ — "+d.text+"\n\n":"")+r.anonymized));
+      else{
+        add(uniq(base+tag+"-anonymizovano.txt"),enc.encode((d.incomplete?"!!! NEÚPLNÉ — "+d.text+"\n\n":"")+r.anonymized));
+        if(r.anonymized.trim()){
+          try{const pdf=await buildPdf(r.anonymized,r.replacements,d.incomplete,d.text);add(uniq(base+tag+"-anonymizovano.pdf"),new Uint8Array(pdf.output("arraybuffer")));}
+          catch(e){d.text+=" · PDF se nepodařilo vytvořit ("+e.message+"), je jen .txt";}
+        }
+      }
       log.push(`${d.incomplete?"NEÚPLNÉ":"OK     "} ${d.text} — ${r.replacements.length} náhrad`);
     }catch(e){log.push(`CHYBA  ${base} (${ext||"soubor"}): ${e.message} — soubor není v ZIPu`);}
   }
   add("souhrn.txt",enc.encode("Anonymizace — https://anonymizace.js.org (zpracováno ve vašem prohlížeči)\n"+
     "Značky (OSOBA1, RC1…) se číslují v každém souboru zvlášť. Výsledek před sdílením zkontrolujte.\n"+
-    "Soubory jsou očíslované v pořadí, v jakém jste je vybrali (původní názvy mohou obsahovat jména, proto se nepoužívají).\n\n"+log.join("\n")+"\n"));
+    "Soubory jsou očíslované v pořadí, v jakém jste je vybrali (původní názvy mohou obsahovat jména, proto se nepoužívají).\n"+
+    "PDF, text i fotky mají formátované PDF a čistý .txt na kopírování; Word zůstává Wordem s původním formátováním.\n\n"+log.join("\n")+"\n"));
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([zipEntries(entries)],{type:"application/zip"}));a.download="anonymizovano.zip";
   document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
   const bad=log.filter(l=>l.startsWith("CHYBA")).length, part=log.filter(l=>l.startsWith("NEÚPLNÉ")).length;
@@ -243,14 +250,13 @@ async function batch(files,fst){
 // ── stáhnout PDF: generuje se v prohlížeči (jsPDF + písmo Inter s českou a slovenskou diakritikou,
 //    obojí na vlastní doméně), obsahuje jen anonymizovaný text. Knihovna se načte až při kliknutí.
 async function fetchB64(url){const b=new Uint8Array(await (await fetch(url)).arrayBuffer());let s="";for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
-async function exportPdf(){
-  const fst=document.getElementById("anon-fst");
-  if(!lastAnon.trim()){fst.className="fst err";fst.textContent="Není co uložit — nejdřív vložte nebo nahrajte text.";return;}
-  fst.className="fst";fst.textContent="Připravuji PDF…";
-  try{
+let pdfFonts=null;
+// Sestaví hezké PDF z anonymizovaného textu (stejné pro jednotlivé stažení i hromadný ZIP).
+async function buildPdf(lastAnon,lastReps,lastIncomplete,incompleteMsg){
     await loadScriptOnce("js/vendor/jspdf/jspdf.umd.min.js");
     const {jsPDF}=window.jspdf, doc=new jsPDF({unit:"mm",format:"a4",compress:true});
-    const [r,b]=await Promise.all([fetchB64("fonts/pdf/inter-cz-400.ttf"),fetchB64("fonts/pdf/inter-cz-700.ttf")]);
+    pdfFonts=pdfFonts||await Promise.all([fetchB64("fonts/pdf/inter-cz-400.ttf"),fetchB64("fonts/pdf/inter-cz-700.ttf")]);
+    const [r,b]=pdfFonts;
     doc.addFileToVFS("Inter-400.ttf",r);doc.addFont("Inter-400.ttf","Inter","normal");
     doc.addFileToVFS("Inter-700.ttf",b);doc.addFont("Inter-700.ttf","Inter","bold");
     doc.setProperties({title:"Anonymizovaný dokument",creator:"anonymizace.js.org",author:""});
@@ -280,7 +286,7 @@ async function exportPdf(){
     }
     y+=Object.keys(types).length?9:2;
     if(lastIncomplete){
-      const msg=doc.splitTextToSize("NEÚPLNÉ — "+(document.getElementById("anon-fst").dataset.last||"část dokumentu nebyla zpracována"),W-10);
+      const msg=doc.splitTextToSize("NEÚPLNÉ — "+(incompleteMsg||"část dokumentu nebyla zpracována"),W-10);
       const h=msg.length*4.6+6; doc.setFillColor(255,241,242);doc.roundedRect(M,y-4,W,h,2.5,2.5,"F");
       doc.setFont("Inter","bold");doc.setFontSize(9);col(RED);msg.forEach((l,k)=>doc.text(l,M+5,y+1.6+k*4.6));y+=h+4;
     }
@@ -310,9 +316,11 @@ async function exportPdf(){
     }
     // 2) sazba řádku s tokeny (slova + štítky), zalamování na šířku a odsazení
     const runText=(txt,x0,fs,bold,color=INK)=>{
+      // bez spread operátoru — dlouhý odstavec (statisíce slov) by přetekl zásobník
       const parts=[];let last=0;
-      for(const m of txt.matchAll(PHR)){if(m.index>last)parts.push(...txt.slice(last,m.index).split(/(\s+)/).filter(Boolean).map(t=>({t})));parts.push({t:m[0],ph:true});last=m.index+m[0].length;}
-      if(last<txt.length)parts.push(...txt.slice(last).split(/(\s+)/).filter(Boolean).map(t=>({t})));
+      const words=str=>{for(const t of str.split(/(\s+)/)) if(t) parts.push({t});};
+      for(const m of txt.matchAll(PHR)){if(m.index>last)words(txt.slice(last,m.index));parts.push({t:m[0],ph:true});last=m.index+m[0].length;}
+      if(last<txt.length)words(txt.slice(last));
       const lh=fs*0.58; let lx=x0; if(y>BOT-lh)newPage();
       for(const p of parts){
         doc.setFont("Inter",p.ph||bold?"bold":"normal");doc.setFontSize(p.ph?fs*0.78:fs);
@@ -344,6 +352,14 @@ async function exportPdf(){
     for(let i=1;i<=n;i++){doc.setPage(i);doc.setDrawColor(...LINE);doc.line(M,PH-14,PW-M,PH-14);
       doc.setFont("Inter","normal");doc.setFontSize(7.5);col(MUT);
       doc.text("anonymizace.js.org · před sdílením výsledek zkontrolujte",M,PH-9.5);doc.text(`${i} / ${n}`,PW-M,PH-9.5,{align:"right"});}
+    return doc;
+}
+async function exportPdf(){
+  const fst=document.getElementById("anon-fst");
+  if(!lastAnon.trim()){fst.className="fst err";fst.textContent="Není co uložit — nejdřív vložte nebo nahrajte text.";return;}
+  fst.className="fst";fst.textContent="Připravuji PDF…";
+  try{
+    const doc=await buildPdf(lastAnon,lastReps,lastIncomplete,fst.dataset.last);
     doc.save("anonymizovany-dokument.pdf");   // název souboru může obsahovat jméno → nikdy do výstupu
     fst.className=lastIncomplete?"fst err":"fst ok";fst.textContent="PDF staženo"+(lastIncomplete?" — POZOR, dokument je NEÚPLNÝ (vyznačeno i v PDF).":".");
   }catch(e){fst.className="fst err";fst.textContent="PDF se nepodařilo vytvořit: "+e.message+". Text můžete zkopírovat tlačítkem Kopírovat.";}
