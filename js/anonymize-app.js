@@ -44,6 +44,8 @@ aiIn.addEventListener("input",reveal);
 document.getElementById("ai-copy").addEventListener("click",function(){
   navigator.clipboard.writeText(aiOut.textContent).then(()=>{this.textContent="Zkopírováno";setTimeout(()=>this.textContent="Kopírovat",1400);},()=>{});
 });
+// jeden obří textový uzel (stovky tisíc znaků bez značky) shodí vykreslení v Chromiu → po kouscích
+function addText(el,t){for(let i=0;i<t.length;i+=8000) el.appendChild(document.createTextNode(t.slice(i,i+8000)));}
 function render(anonymized,replacements){
   lastAnon=anonymized;
   lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); lastReps=replacements; reveal(); docxBtn.hidden=!lastDocx; document.getElementById("keep-img-wrap").hidden=!lastDocx;
@@ -54,13 +56,13 @@ function render(anonymized,replacements){
   else{
     let last=0;
     for(const m of anonymized.matchAll(PH_RE)){
-      if(m.index>last) output.appendChild(document.createTextNode(anonymized.slice(last,m.index)));
+      if(m.index>last) addText(output,anonymized.slice(last,m.index));
       const tok=span("ph-tok t-"+m[0].replace(/\d+$/,""),m[0]);
       if(lastMap.has(m[0])){tok.tabIndex=0;tok.setAttribute("role","button");tok.title="Není to osobní údaj? Kliknutím vrátíte do textu.";tok.dataset.ph=m[0];}
       output.appendChild(tok);
       last=m.index+m[0].length;
     }
-    if(last<anonymized.length) output.appendChild(document.createTextNode(anonymized.slice(last)));
+    if(last<anonymized.length) addText(output,anonymized.slice(last));
   }
 
   // statistiky
