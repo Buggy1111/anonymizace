@@ -64,6 +64,41 @@ $("ner-go").onclick=async function(){const b=this,st=$("ner-st"),out=$("ner-out"
 const UPOS={NOUN:"podst. jméno",PROPN:"vlastní jméno",VERB:"sloveso",AUX:"pom. sloveso",ADJ:"příd. jméno",
   ADV:"příslovce",PRON:"zájmeno",DET:"determinant",NUM:"číslovka",ADP:"předložka",CCONJ:"spojka",SCONJ:"spojka",
   PART:"částice",INTJ:"citoslovce",PUNCT:"interpunkce",SYM:"symbol",X:"jiné"};
+
+// Myš posouvá dlouhou tabulku bez hledání spodního posuvníku; touch necháváme prohlížeči.
+{
+  const out=$("morf-out");
+  let drag=null;
+  function stopDrag(e){
+    if(!drag||e.pointerId!==drag.id)return;
+    drag=null;
+    out.classList.remove("dragging");
+    if(out.hasPointerCapture(e.pointerId))out.releasePointerCapture(e.pointerId);
+  }
+  out.addEventListener("pointerdown",e=>{
+    if(e.pointerType!=="mouse"||e.button!==0||e.shiftKey||e.detail>1||
+       !e.target.closest("table")||out.scrollWidth<=out.clientWidth)return;
+    drag={id:e.pointerId,x:e.clientX,y:e.clientY,left:out.scrollLeft,active:false};
+  });
+  window.addEventListener("pointermove",e=>{
+    if(!drag||e.pointerId!==drag.id)return;
+    if(!(e.buttons&1)){stopDrag(e);return;}
+    const dx=e.clientX-drag.x;
+    if(!drag.active){
+      const dy=e.clientY-drag.y;
+      if(Math.max(Math.abs(dx),Math.abs(dy))<5)return;
+      if(Math.abs(dy)>Math.abs(dx)){stopDrag(e);return;}
+      drag.active=true;
+      out.setPointerCapture(e.pointerId);
+      out.classList.add("dragging");
+      window.getSelection().removeAllRanges();
+    }
+    e.preventDefault();
+    out.scrollLeft=drag.left-dx;
+  });
+  for(const event of ["pointerup","pointercancel","lostpointercapture"])
+    window.addEventListener(event,stopDrag);
+}
 $("morf-go").onclick=async function(){const b=this,st=$("morf-st"),out=$("morf-out");if(!guard($("morf-in").value,st,out))return;b.disabled=true;setStatus(st,"Zpracovává UDPipe…");
   try{const r=await apiPost(API+"/udpipe/api/process",{data:$("morf-in").value,tokenizer:"",tagger:"",model:"czech",output:"conllu"});
     const lines=(await r.json()).result.split("\n").filter(l=>l&&!l.startsWith("#"));

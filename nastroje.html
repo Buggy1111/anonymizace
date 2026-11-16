@@ -73,7 +73,7 @@
     <div class="controls"><button type="button" class="btn sm" id="morf-go">Analyzovat</button><label class="upload"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Nahrát soubor<input type="file" accept=".txt,.pdf,.docx,.png,.jpg,.jpeg,.webp" data-target="morf-in" data-status="morf-st" class="sr"></label><span class="status" id="morf-st" aria-live="polite"></span></div>
     <div class="bench"><div class="panes">
       <div class="pane"><div class="ph"><label for="morf-in">Vstupní text</label><span class="cc" id="morf-cc"></span></div><textarea id="morf-in" data-cc="morf-cc" spellcheck="false">Pavel viděl tři velké psy a rychle utíkal domů.</textarea></div>
-      <div class="pane"><div class="ph"><span>Výsledek</span></div><div class="out mono" id="morf-out" aria-live="polite"></div></div>
+      <div class="pane"><div class="ph"><span>Výsledek</span></div><div class="out mono" id="morf-out" role="region" aria-label="Výsledek morfologie" aria-live="polite" tabindex="0" title="Tažením myší posunete tabulku. Se Shiftem můžete označit text."></div></div>
     </div></div>
   </div>
   <div class="panel" data-p="korek" role="tabpanel" aria-label="Pravopis a diakritika">

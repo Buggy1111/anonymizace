@@ -38,4 +38,5 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           python3 -m http.server 8765 >/dev/null 2>&1 &
           sleep 2
+          NODE_PATH=/tmp/pw/node_modules node tests/toolkit.test.cjs
           NODE_PATH=/tmp/pw/node_modules node tests/e2e.cjs
