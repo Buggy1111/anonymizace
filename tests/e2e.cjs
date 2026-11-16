@@ -29,7 +29,8 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   const raw=require('child_process').execFileSync('unzip',['-p',out]).toString('utf8');
   t('DOCX: žádný originál v souboru',!SECRETS.concat(['605 999','Petr Svoboda','Marie Svobodová']).some(s=>raw.includes(s)));
   // ruční skrytí → platí i v exportu DOCX a PDF
-  await p.evaluate(()=>{const t=document.getElementById('input');const i=t.value.indexOf('zaplacení');t.focus();t.setSelectionRange(i,i+9);});
+  // Scroll hides the selection button; focusing after export must not start another scroll.
+  await p.evaluate(()=>{const t=document.getElementById('input');const i=t.value.indexOf('zaplacení');t.focus({preventScroll:true});t.setSelectionRange(i,i+9);});
   await p.dispatchEvent('#input','mouseup');await p.waitForTimeout(200);await p.click('.hide-sel');await p.waitForTimeout(500);
   const [dh]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const oh=path.join(tmp,'h.docx'); await dh.saveAs(oh);
   const rawH=require('child_process').execFileSync('unzip',['-p',oh]).toString('utf8');
