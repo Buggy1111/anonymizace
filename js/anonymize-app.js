@@ -44,9 +44,11 @@ aiIn.addEventListener("input",reveal);
 document.getElementById("ai-copy").addEventListener("click",function(){
   navigator.clipboard.writeText(aiOut.textContent).then(()=>{this.textContent="Zkopírováno";setTimeout(()=>this.textContent="Kopírovat",1400);},()=>{});
 });
+// jeden obří textový uzel (stovky tisíc znaků bez značky) shodí vykreslení v Chromiu → po kouscích
+function addText(el,t){for(let i=0;i<t.length;i+=8000) el.appendChild(document.createTextNode(t.slice(i,i+8000)));}
 function render(anonymized,replacements){
   lastAnon=anonymized;
-  lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); lastReps=replacements; reveal(); docxBtn.hidden=!lastDocx;
+  lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); lastReps=replacements; reveal(); docxBtn.hidden=!lastDocx; document.getElementById("keep-img-wrap").hidden=!lastDocx;
 
   // výstup s zvýrazněnými placeholdery — čisté DOM uzly (matchAll, žádný innerHTML)
   clear(output);
@@ -54,13 +56,13 @@ function render(anonymized,replacements){
   else{
     let last=0;
     for(const m of anonymized.matchAll(PH_RE)){
-      if(m.index>last) output.appendChild(document.createTextNode(anonymized.slice(last,m.index)));
+      if(m.index>last) addText(output,anonymized.slice(last,m.index));
       const tok=span("ph-tok t-"+m[0].replace(/\d+$/,""),m[0]);
       if(lastMap.has(m[0])){tok.tabIndex=0;tok.setAttribute("role","button");tok.title="Není to osobní údaj? Kliknutím vrátíte do textu.";tok.dataset.ph=m[0];}
       output.appendChild(tok);
       last=m.index+m[0].length;
     }
-    if(last<anonymized.length) output.appendChild(document.createTextNode(anonymized.slice(last)));
+    if(last<anonymized.length) addText(output,anonymized.slice(last));
   }
 
   // statistiky
@@ -230,10 +232,11 @@ docxBtn.onclick=async function(){
   if(!lastDocx)return; const b=this;
   if(lastDocx.truncated){const f=document.getElementById("anon-fst");f.className="fst err";f.textContent="Dokument je delší než "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků, část by se neprohledala. DOCX proto nestáhnu, rozdělte ho prosím na menší části.";return;} b.disabled=true; const fst=document.getElementById("anon-fst");
   try{
-    const {blob,count}=await anonymizeDocx(lastDocx.buf,lastReps);
+    const keep=document.getElementById("keep-img").checked;
+    const {blob,count,images}=await anonymizeDocx(lastDocx.buf,lastReps,{keepImages:keep});
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="anonymizovany-dokument.docx";
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-    fst.className="fst ok";fst.textContent="Staženo: "+count+" náhrad ve Wordu, formátování zachováno, autor odstraněn z vlastností.";
+    fst.className="fst ok";fst.textContent="Staženo: "+count+" náhrad ve Wordu, formátování zachováno, autor odstraněn z vlastností."+(images?(keep?" Obrázky ("+images+") jsou ponechané a NEPROHLEDANÉ — zkontrolujte je.":" Obrázky ("+images+") jsme nahradili šedou plochou, mohly obsahovat osobní údaje."):"");
   }catch(e){fst.className="fst err";fst.textContent="DOCX se nepodařilo vytvořit: "+e.message;}
   b.disabled=false;
 };

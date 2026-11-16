@@ -26,6 +26,10 @@ jobs:
         run: node tests/engine.test.cjs
       - name: Korpus
         run: node tests/corpus.test.cjs
+      - name: ZIP (DOCX) odolnost
+        run: node tests/zip.test.cjs
+      - name: python-docx (kontrola, že vytvořený DOCX jde otevřít)
+        run: python3 -m pip install --user python-docx==1.2.0
       - name: Prohlížeč (Playwright)
         run: |
           sudo apt-get install -y -qq poppler-utils unzip >/dev/null

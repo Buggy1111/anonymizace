@@ -89,6 +89,11 @@ async function renderPdfPage(pg){
   await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise; return c;
 }
 const PAGE_TEXT_MIN=20;   // méně znaků textové vrstvy = stránka je (asi) sken → OCR
+const MIXED_TEXT_MAX=1500; // stránka s obrázkem a méně textem se čte i přes OCR (sken vlepený do textu)
+async function hasImage(pg){
+  const O=pdfjsLib.OPS, ops=(await pg.getOperatorList()).fnArray;
+  return ops.some(f=>f===O.paintImageXObject||f===O.paintInlineImageXObject||f===O.paintImageXObjectRepeat||f===O.paintJpegXObject);
+}
 const OCR_WEAK=40;        // jistota OCR pod touto hranicí = špatně čitelná stránka
 
 // Levné kontroly PŘED dekódováním (paměť prohlížeče): rozměry obrázku z hlavičky
@@ -139,15 +144,17 @@ async function extractText(file,progress,info={}){
     for(let i=1;i<=pdf.numPages;i++){
       const pg=await pdf.getPage(i); const tc=await pg.getTextContent();
       const txt=joinPdfItems(tc.items); const chars=tc.items.reduce((n,it)=>n+(it.str||"").trim().length,0);
-      if(chars>=PAGE_TEXT_MIN){parts.push(txt);info.textPages.push(i);continue;}
-      if(ocrCount>=OCR_MAX_PAGES){parts.push(`[Strana ${i}: NEPŘEČTENO — limit OCR ${OCR_MAX_PAGES} stran]`);info.skippedPages.push(i);continue;}
+      // stránka s textem i obrázkem (průvodní text + naskenovaný doklad): obrázek přečteme OCR navíc
+      if(chars>=PAGE_TEXT_MIN&&(chars>=MIXED_TEXT_MAX||!(await hasImage(pg)))){parts.push(txt);info.textPages.push(i);continue;}
+      const mixed=chars>=PAGE_TEXT_MIN; if(mixed){parts.push(txt);info.textPages.push(i);}
+      if(ocrCount>=OCR_MAX_PAGES){parts.push(`[Strana ${i}: ${mixed?"OBRÁZEK ":""}NEPŘEČTENO — limit OCR ${OCR_MAX_PAGES} stran]`);info.skippedPages.push(i);continue;}
       ocrCount++;
       try{
         const c=await renderPdfPage(pg);
         const r=await ocrRecognize(c,progress,`Rozpoznávám text ze skenu, strana ${i} z ${pdf.numPages}…`); c.width=c.height=0;
-        if(!r.text.trim()){parts.push(`[Strana ${i}: NEPŘEČTENO — na skenu se nenašel žádný text]`);info.failedPages.push(i);continue;}
+        if(!r.text.trim()){if(mixed)continue; parts.push(`[Strana ${i}: NEPŘEČTENO — na skenu se nenašel žádný text]`);info.failedPages.push(i);continue;}
         parts.push(r.text); info.ocrPages.push(i); if(r.conf<OCR_WEAK) info.weakPages.push(i);
-      }catch(e){parts.push(`[Strana ${i}: NEPŘEČTENO — ${e.message}]`);info.failedPages.push(i);}
+      }catch(e){parts.push(`[Strana ${i}: ${mixed?"OBRÁZEK ":""}NEPŘEČTENO — ${e.message}]`);info.failedPages.push(i);}
     }
     info.incomplete=info.failedPages.length+info.skippedPages.length>0;
     return parts.join("\n\n").trim();
@@ -175,7 +182,7 @@ function describeExtract(name,fullLen,info,limit){
   let msg=`${name} načten (${L(Math.min(fullLen,limit))} znaků)`, incomplete=false;
   if(info.pages>1||(info.ocrPages&&info.ocrPages.length)){
     const parts=[`${info.pages} ${info.pages===1?"strana":info.pages<5?"strany":"stran"}`];
-    if(info.ocrPages&&info.ocrPages.length) parts.push(info.ocrPages.length===info.pages?"vše přes OCR":`OCR: ${pg(info.ocrPages)}`);
+    if(info.ocrPages&&info.ocrPages.length) parts.push(info.ocrPages.length===info.pages&&!(info.textPages||[]).length?"vše přes OCR":`OCR: ${pg(info.ocrPages)}`);
     if(info.weakPages&&info.weakPages.length) parts.push(`špatně čitelné: ${pg(info.weakPages)} — zkontrolujte`);
     msg+=" · "+parts.join(" · ");
   }

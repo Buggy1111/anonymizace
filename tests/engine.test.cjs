@@ -237,5 +237,8 @@ console.log("ReDoS — 20 000 znaků nepříjemného vstupu do 300 ms (audit 14.
   }
 }
 
+console.log("přídavná jména na -ový nejsou příjmení (zátěžový test 15. 11.)");
+t("Výplňový / Automobilový zůstanou",untouched("Výplňový text. Automobilový závod."));
+t("Nováková / Petrová dál skryté",redacted("Paní Nováková a Petrová.","OSOBA"));
 console.log("\n"+pass+" passed, "+fail+" failed");
 process.exit(fail?1:0);
