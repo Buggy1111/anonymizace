@@ -148,7 +148,7 @@ async function anonymizeDocx(buf,pairs,opts={}){
   if(emb) throw new Error("dokument obsahuje vložený objekt nebo neznámou část ("+emb.name.split("/").pop()+"), jejíž obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
   let total=0, images=0; const pngParts=[];
   for(const en of entries){
-    if(DOCX_IMAGE.test(en.name)){images++; if(opts.keepImages) continue;
+    if(DOCX_IMAGE.test(en.name)){images++; if(opts.keepImages&&/^word\/media\/[^/]+$/.test(en.name)) continue;   // náhled stránky (docProps/thumbnail) = původní text → vždy pryč
       if(/\.svg$/i.test(en.name)) stored(en,enc.encode(GRAY_SVG)); else {stored(en,GRAY_PNG.slice());pngParts.push("/"+en.name);}
       continue;}
     let xml=null;

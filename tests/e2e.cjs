@@ -50,7 +50,7 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   t('volba „ponechat obrázky“ se ukáže u Wordu',await p.isVisible('#keep-img'));
   await p.check('#keep-img');
   const [dk]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const ok2=path.join(tmp,'k.docx'); await dk.saveAs(ok2);
-  t('ponechat obrázky: obrázek zůstal, popisek přesto bez jména',!cp.execFileSync('unzip',['-p',ok2,'word/media/image1.png']).equals(gray)&&!/Dvořák/.test(cp.execFileSync('unzip',['-p',ok2]).toString('utf8')));
+  t('ponechat obrázky: obrázek zůstal, náhled stránky ne, popisek bez jména',!cp.execFileSync('unzip',['-p',ok2,'word/media/image1.png']).equals(gray)&&cp.execFileSync('unzip',['-p',ok2,'docProps/thumbnail.jpeg']).equals(gray)&&!/Dvořák/.test(cp.execFileSync('unzip',['-p',ok2]).toString('utf8')));
   t('ponechat obrázky: hláška upozorní na kontrolu',/NEPROHLEDANÉ/.test(await p.textContent('#anon-fst')));
   await p.uncheck('#keep-img');
   st=await load(path.join(F,'bad','embedded.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
