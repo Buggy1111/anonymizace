@@ -47,6 +47,12 @@ let pass=0,fail=0; const t=(n,c,d)=>{c?pass++:fail++;console.log((c?'  ok  ':'  
   t('DOCX: popisek obrázku bez jména',!/Dvořák/.test(cp.execFileSync('unzip',['-p',oi]).toString('utf8')));
   t('DOCX s obrázky jde otevřít',cp.spawnSync('python3',['-c','import docx,sys;docx.Document(sys.argv[1])',oi]).status===0);
   t('DOCX: hláška o nahrazených obrázcích',/Obrázky \(2\)/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
+  t('volba „ponechat obrázky“ se ukáže u Wordu',await p.isVisible('#keep-img'));
+  await p.check('#keep-img');
+  const [dk]=await Promise.all([p.waitForEvent('download'),p.click('#docx-dl')]); const ok2=path.join(tmp,'k.docx'); await dk.saveAs(ok2);
+  t('ponechat obrázky: obrázek zůstal, popisek přesto bez jména',!cp.execFileSync('unzip',['-p',ok2,'word/media/image1.png']).equals(gray)&&!/Dvořák/.test(cp.execFileSync('unzip',['-p',ok2]).toString('utf8')));
+  t('ponechat obrázky: hláška upozorní na kontrolu',/NEPROHLEDANÉ/.test(await p.textContent('#anon-fst')));
+  await p.uncheck('#keep-img');
   st=await load(path.join(F,'bad','embedded.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);
   t('DOCX s vloženým objektem: odmítnut',/vložený objekt/.test(await p.textContent('#anon-fst')),await p.textContent('#anon-fst'));
   st=await load(path.join(F,'bad','unknown-part.docx')); await p.click('#docx-dl'); await p.waitForTimeout(500);

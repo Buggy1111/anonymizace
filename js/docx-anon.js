@@ -126,7 +126,7 @@ const DOCX_KEEP=/^word\/fonts\/[^/]+\.(odttf|ttf|otf|fntdata)$/i, DOCX_XML=/\.(x
 const GRAY_PNG=Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAAAAAA6fptVAAAACklEQVR4nGO4CQAA2wDaZNW9eAAAAABJRU5ErkJggg=="),c=>c.charCodeAt(0));
 const GRAY_SVG='<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="1" height="1" fill="#d9d9d9"/></svg>';
 function stored(en,b){Object.assign(en,{method:0,data:b,csize:b.length,usize:b.length,crc:crc32(b)});}
-async function anonymizeDocx(buf,pairs){
+async function anonymizeDocx(buf,pairs,opts={}){
   const xmlEsc=v=>v.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const enc=new TextEncoder(), dec=new TextDecoder();
   // adresářové položky OPC nepotřebuje a mohly by nést data → do výstupu je nedáme vůbec
@@ -148,7 +148,7 @@ async function anonymizeDocx(buf,pairs){
   if(emb) throw new Error("dokument obsahuje vložený objekt nebo neznámou část ("+emb.name.split("/").pop()+"), jejíž obsah neumíme zkontrolovat. DOCX z bezpečnosti nevytvořím, stáhněte PDF");
   let total=0, images=0; const pngParts=[];
   for(const en of entries){
-    if(DOCX_IMAGE.test(en.name)){images++;
+    if(DOCX_IMAGE.test(en.name)){images++; if(opts.keepImages) continue;
       if(/\.svg$/i.test(en.name)) stored(en,enc.encode(GRAY_SVG)); else {stored(en,GRAY_PNG.slice());pngParts.push("/"+en.name);}
       continue;}
     let xml=null;
@@ -169,7 +169,7 @@ async function anonymizeDocx(buf,pairs){
     stored(ct,enc.encode(x));}
   const decode=x=>x.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16))).replace(/&amp;/g,"&");
   for(const en of entries){
-    if(!/\.(xml|rels)$/i.test(en.name)) continue;
+    if(!/\.(xml|rels|svg)$/i.test(en.name)) continue;   // svg = text, při ponechaných obrázcích může nést údaj
     const raw=dec.decode(await inflate(en));
     // 1) surové XML vč. hodnot atributů (odkazy), 2) jen text bez tagů — chytí i údaj rozdělený mezi runy
     const parsed=new DOMParser().parseFromString(raw,"application/xml");

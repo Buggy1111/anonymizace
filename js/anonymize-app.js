@@ -46,7 +46,7 @@ document.getElementById("ai-copy").addEventListener("click",function(){
 });
 function render(anonymized,replacements){
   lastAnon=anonymized;
-  lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); lastReps=replacements; reveal(); docxBtn.hidden=!lastDocx;
+  lastMap=new Map(replacements.map(x=>[x.placeholder,x.original])); lastReps=replacements; reveal(); docxBtn.hidden=!lastDocx; document.getElementById("keep-img-wrap").hidden=!lastDocx;
 
   // výstup s zvýrazněnými placeholdery — čisté DOM uzly (matchAll, žádný innerHTML)
   clear(output);
@@ -230,10 +230,11 @@ docxBtn.onclick=async function(){
   if(!lastDocx)return; const b=this;
   if(lastDocx.truncated){const f=document.getElementById("anon-fst");f.className="fst err";f.textContent="Dokument je delší než "+MAX_CHARS.toLocaleString("cs-CZ")+" znaků, část by se neprohledala. DOCX proto nestáhnu, rozdělte ho prosím na menší části.";return;} b.disabled=true; const fst=document.getElementById("anon-fst");
   try{
-    const {blob,count,images}=await anonymizeDocx(lastDocx.buf,lastReps);
+    const keep=document.getElementById("keep-img").checked;
+    const {blob,count,images}=await anonymizeDocx(lastDocx.buf,lastReps,{keepImages:keep});
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="anonymizovany-dokument.docx";
     document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-    fst.className="fst ok";fst.textContent="Staženo: "+count+" náhrad ve Wordu, formátování zachováno, autor odstraněn z vlastností."+(images?" Obrázky ("+images+") jsme nahradili šedou plochou, mohly obsahovat osobní údaje.":"");
+    fst.className="fst ok";fst.textContent="Staženo: "+count+" náhrad ve Wordu, formátování zachováno, autor odstraněn z vlastností."+(images?(keep?" Obrázky ("+images+") jsou ponechané a NEPROHLEDANÉ — zkontrolujte je.":" Obrázky ("+images+") jsme nahradili šedou plochou, mohly obsahovat osobní údaje."):"");
   }catch(e){fst.className="fst err";fst.textContent="DOCX se nepodařilo vytvořit: "+e.message;}
   b.disabled=false;
 };
