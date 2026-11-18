@@ -72,6 +72,7 @@
 .controls select{font:inherit;font-size:14px;padding:8px 12px;border-radius:10px;border:1px solid var(--line2);background:var(--bg);color:var(--fg)}
 .status{font-size:13px;color:var(--fg2)}
 .status.ok{color:var(--ok)}.status.err{color:var(--err)}
+#morf-help{margin:0}
 .cc{font-size:12px;font-weight:500;color:var(--fg2)}
 .cc.over{color:var(--err)}
 .pane .out{min-height:200px}

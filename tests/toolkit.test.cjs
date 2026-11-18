@@ -17,6 +17,14 @@ const result=Array.from({length:200},(_,i)=>`${i+1}\tpoložka\tpoložka\tNOUN\t_
     }
     await load(page);
     const out=page.locator('#morf-out');
+    assert(await page.locator('#morf-help').isVisible());
+    await page.context().grantPermissions(['clipboard-read','clipboard-write'],{origin:new URL(BASE).origin});
+    async function copySelection(){
+      const selected=await page.evaluate(()=>getSelection().toString());
+      assert(selected.includes('položka'));
+      await page.keyboard.press('ControlOrMeta+C');
+      assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),selected,'Ctrl+C must copy the selected result');
+    }
     async function point(row){
       const cell=page.locator('#morf-out tbody tr').nth(row).locator('td').first();
       await out.evaluate(e=>{e.scrollLeft=0;});
@@ -43,12 +51,15 @@ const result=Array.from({length:200},(_,i)=>`${i+1}\tpoložka\tpoložka\tNOUN\t_
     const pos=await point(80);
     await page.mouse.dblclick(pos.x,pos.y);
     assert.match(await page.evaluate(()=>getSelection().toString()),/položka/,'double click must select a word');
+    await copySelection();
     await page.keyboard.down('Shift');
     await page.mouse.move(pos.x,pos.y);await page.mouse.down();
-    await page.mouse.move(pos.x+50,pos.y,{steps:8});await page.mouse.up();
+    await page.mouse.move(pos.x+180,pos.y+80,{steps:12});await page.mouse.up();
     await page.keyboard.up('Shift');
     assert.equal(await out.evaluate(e=>e.scrollLeft),0,'Shift drag must preserve native selection');
     assert(await page.evaluate(()=>getSelection().toString().length>0));
+    assert.match(await page.evaluate(()=>getSelection().toString()),/\n/,'Shift drag must select across rows');
+    await copySelection();
     await page.mouse.move(pos.x,pos.y);await page.mouse.down({button:'right'});
     await page.mouse.move(pos.x-80,pos.y,{steps:8});await page.mouse.up({button:'right'});
     assert.equal(await out.evaluate(e=>e.scrollLeft),0,'right button must not drag');
